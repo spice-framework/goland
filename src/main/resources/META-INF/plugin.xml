@@ -1,0 +1,32 @@
+<idea-plugin>
+  <id>com.github.stevenbuglione.spice</id>
+  <name>Spice</name>
+  <vendor url="https://github.com/StevenBuglione/spice">Spice contributors</vendor>
+
+  <description><![CDATA[
+    Native GoLand presentation and navigation for valid-Go Spice annotations,
+    backed by the shared Spice language server.
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.ultimate</depends>
+  <depends>com.intellij.modules.lsp</depends>
+  <depends>org.jetbrains.plugins.go</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <lang.foldingBuilder
+        language="go"
+        implementationClass="com.github.stevenbuglione.spice.goland.SpiceFoldingBuilder"
+        order="first"/>
+    <psi.referenceContributor
+        language="go"
+        implementation="com.github.stevenbuglione.spice.goland.SpiceAnnotationReferenceContributor"/>
+    <annotator
+        language="go"
+        implementationClass="com.github.stevenbuglione.spice.goland.SpiceAnnotationAnnotator"/>
+    <colorSettingsPage
+        implementation="com.github.stevenbuglione.spice.goland.SpiceColorSettingsPage"/>
+    <platform.lsp.integrationProvider
+        implementation="com.github.stevenbuglione.spice.goland.SpiceLspIntegrationProvider"/>
+  </extensions>
+</idea-plugin>
