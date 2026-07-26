@@ -28,5 +28,7 @@
         implementation="com.github.stevenbuglione.spice.goland.SpiceColorSettingsPage"/>
     <platform.lsp.integrationProvider
         implementation="com.github.stevenbuglione.spice.goland.SpiceLspIntegrationProvider"/>
+    <runConfigurationProducer
+        implementation="com.github.stevenbuglione.spice.goland.SpiceApplicationRunConfigurationProducer"/>
   </extensions>
 </idea-plugin>
