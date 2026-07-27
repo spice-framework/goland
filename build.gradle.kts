@@ -58,6 +58,7 @@ dependencies {
     integrationTestImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
     integrationTestImplementation("org.kodein.di:kodein-di-jvm:7.26.1")
     integrationTestImplementation("org.jetbrains.kotlin:kotlin-stdlib:2.4.10")
+    integrationTestImplementation("net.java.dev.jna:jna-platform:5.17.0")
     integrationTestImplementation(
         "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2"
     )

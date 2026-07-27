@@ -1,5 +1,11 @@
 package com.github.stevenbuglione.spice.goland
 
+import com.sun.jna.Native
+import com.sun.jna.platform.win32.Kernel32
+import com.sun.jna.platform.win32.User32
+import com.sun.jna.platform.win32.WinDef.DWORD
+import com.sun.jna.platform.win32.WinDef.HWND
+import com.sun.jna.platform.win32.WinUser.SW_RESTORE
 import com.intellij.driver.sdk.openFile
 import com.intellij.driver.sdk.closeAndDisableAllBalloonNotifications
 import com.intellij.driver.sdk.changeTheme
@@ -118,6 +124,7 @@ class SpiceInstalledPluginTest {
             ideFrame {
                 val frame: IdeaFrameUI = this
                 val localRobot = Robot()
+                activateIdeWindow(project.fileName.toString())
                 localRobot.keyPress(KeyEvent.VK_ESCAPE)
                 localRobot.keyRelease(KeyEvent.VK_ESCAPE)
                 resize(1280, 800)
@@ -165,6 +172,7 @@ class SpiceInstalledPluginTest {
                     )
 
                     moveCaretToOffset(declaration)
+                    activateIdeWindow(project.fileName.toString())
                     keyboard {
                         enter()
                         typeText("@")
@@ -245,6 +253,7 @@ class SpiceInstalledPluginTest {
                         editor.offsetToXY(applicationAt + 2)
                     }
                     val documentationLocation = component.getLocationOnScreen()
+                    activateIdeWindow(project.fileName.toString())
                     localRobot.mouseMove(
                         documentationLocation.x + documentationPoint.x,
                         documentationLocation.y + documentationPoint.y + 8,
@@ -296,10 +305,12 @@ class SpiceInstalledPluginTest {
                                 .toFile(),
                         ),
                     )
+                    activateIdeWindow(project.fileName.toString())
                     localRobot.keyPress(KeyEvent.VK_ESCAPE)
                     localRobot.keyRelease(KeyEvent.VK_ESCAPE)
                     localRobot.waitForIdle()
 
+                    activateIdeWindow(project.fileName.toString())
                     assertModifierHoverUnderline(
                         localRobot,
                         this,
@@ -314,6 +325,7 @@ class SpiceInstalledPluginTest {
                         editor.offsetToXY(applicationAt + 2)
                     }
                     val editorLocation = component.getLocationOnScreen()
+                    activateIdeWindow(project.fileName.toString())
                     localRobot.keyPress(KeyEvent.VK_CONTROL)
                     localRobot.mouseMove(
                         editorLocation.x + clickPoint.x,
@@ -409,6 +421,98 @@ class SpiceInstalledPluginTest {
             sourceBefore,
             Files.readString(sourceFile),
             "installed-plugin presentation must not mutate physical Go source",
+        )
+    }
+
+    private fun activateIdeWindow(projectName: String) {
+        if (!System.getProperty("os.name").contains(
+                "windows",
+                ignoreCase = true,
+            )
+        ) {
+            return
+        }
+        val visibleWindows = mutableListOf<Pair<HWND, String>>()
+        User32.INSTANCE.EnumWindows(
+            { handle, _ ->
+                val titleBuffer = CharArray(1_024)
+                User32.INSTANCE.GetWindowText(
+                    handle,
+                    titleBuffer,
+                    titleBuffer.size,
+                )
+                val title = Native.toString(titleBuffer)
+                if (User32.INSTANCE.IsWindowVisible(handle) &&
+                    title.isNotBlank()
+                ) {
+                    visibleWindows += handle to title
+                }
+                true
+            },
+            null,
+        )
+        val matches = visibleWindows.filter { (_, title) ->
+            title.contains(projectName)
+        }
+        val target = requireNotNull(matches.singleOrNull()?.first) {
+            "cannot identify the installed GoLand window for $projectName; " +
+                "matching titles: ${matches.map { it.second }}; " +
+                "visible titles: ${visibleWindows.map { it.second }}"
+        }
+        val currentThread = DWORD(
+            Kernel32.INSTANCE.GetCurrentThreadId().toLong(),
+        )
+        val foregroundThread = DWORD(
+            User32.INSTANCE.GetWindowThreadProcessId(
+                User32.INSTANCE.GetForegroundWindow(),
+                null,
+            ).toLong(),
+        )
+        val targetThread = DWORD(
+            User32.INSTANCE.GetWindowThreadProcessId(target, null).toLong(),
+        )
+        val attachedThreads = listOf(foregroundThread, targetThread)
+            .distinct()
+            .filter { it != currentThread }
+        attachedThreads.forEach { thread ->
+            check(
+                User32.INSTANCE.AttachThreadInput(
+                    currentThread,
+                    thread,
+                    true,
+                ),
+            ) {
+                "cannot attach the installed-IDE test input thread to $thread"
+            }
+        }
+        try {
+            User32.INSTANCE.ShowWindow(target, SW_RESTORE)
+            User32.INSTANCE.BringWindowToTop(target)
+            repeat(20) {
+                User32.INSTANCE.SetForegroundWindow(target)
+                User32.INSTANCE.SetFocus(target)
+                if (User32.INSTANCE.GetForegroundWindow() == target) {
+                    return
+                }
+                Thread.sleep(100)
+            }
+        } finally {
+            attachedThreads.asReversed().forEach { thread ->
+                check(
+                    User32.INSTANCE.AttachThreadInput(
+                        currentThread,
+                        thread,
+                        false,
+                    ),
+                ) {
+                    "cannot detach the installed-IDE test input thread " +
+                        "from $thread"
+                }
+            }
+        }
+        error(
+            "installed GoLand window for $projectName did not become "
+                + "the foreground window",
         )
     }
 
