@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+  <option name="SPICE_COMMENT_PREFIX"><value><option name="FOREGROUND" value="8C8C8C"/></value></option>
+  <option name="SPICE_ANNOTATION_SIGIL"><value><option name="FOREGROUND" value="C55A11"/><option name="FONT_TYPE" value="1"/></value></option>
+  <option name="SPICE_ANNOTATION_NAMESPACE"><value><option name="FOREGROUND" value="00627A"/></value></option>
+  <option name="SPICE_ANNOTATION"><value><option name="FOREGROUND" value="9C3D10"/><option name="FONT_TYPE" value="1"/></value></option>
+  <option name="SPICE_ANNOTATION_PARAMETER"><value><option name="FOREGROUND" value="871094"/></value></option>
+  <option name="SPICE_IMPORT_SYMBOL"><value><option name="FOREGROUND" value="7A3E9D"/></value></option>
+  <option name="SPICE_IMPORT_ALIAS"><value><option name="FOREGROUND" value="00627A"/></value></option>
+  <option name="SPICE_TYPE_REFERENCE"><value><option name="FOREGROUND" value="00627A"/></value></option>
+  <option name="SPICE_ANNOTATION_STRING"><value><option name="FOREGROUND" value="067D17"/></value></option>
+  <option name="SPICE_ANNOTATION_NUMBER"><value><option name="FOREGROUND" value="1750EB"/></value></option>
+  <option name="SPICE_ANNOTATION_BOOLEAN"><value><option name="FOREGROUND" value="0033B3"/><option name="FONT_TYPE" value="1"/></value></option>
+  <option name="SPICE_ANNOTATION_IDENTIFIER"><value><option name="FOREGROUND" value="535353"/></value></option>
+  <option name="SPICE_ANNOTATION_KEYWORD"><value><option name="FOREGROUND" value="0033B3"/><option name="FONT_TYPE" value="1"/></value></option>
+  <option name="SPICE_ANNOTATION_OPERATOR"><value><option name="FOREGROUND" value="666666"/></value></option>
+</list>

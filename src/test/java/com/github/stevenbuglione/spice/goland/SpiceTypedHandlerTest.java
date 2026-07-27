@@ -65,6 +65,59 @@ public final class SpiceTypedHandlerTest extends BasePlatformTestCase {
         );
     }
 
+    public void testTypingAtDeclarationStartPreservesTheDeclaration() {
+        myFixture.configureByText(
+                "main.go",
+                """
+                        package main
+
+                        <caret>func main() {}
+                        """
+        );
+
+        myFixture.type('@');
+
+        assertEquals(
+                """
+                        package main
+
+                        // @
+                        func main() {}
+                        """,
+                myFixture.getEditor().getDocument().getText()
+        );
+        assertEquals(
+                myFixture.getEditor().getDocument().getText()
+                        .indexOf('@') + 1,
+                myFixture.getCaretOffset()
+        );
+    }
+
+    public void testTypingAtParameterStartPreservesTheParameter() {
+        myFixture.configureByText(
+                "provider.go",
+                """
+                        package example
+
+                        func NewService(
+                            <caret>dependency Dependency,
+                        ) *Service {
+                            return nil
+                        }
+                        """
+        );
+
+        myFixture.type('@');
+
+        assertTrue(
+                myFixture.getEditor().getDocument().getText()
+                        .contains(
+                                "    // @\n"
+                                        + "    dependency Dependency"
+                        )
+        );
+    }
+
     public void testTypingAtInsideFunctionRemainsOrdinaryGoTyping() {
         myFixture.configureByText(
                 "main.go",

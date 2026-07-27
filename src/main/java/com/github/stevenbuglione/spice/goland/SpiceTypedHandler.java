@@ -45,11 +45,26 @@ public final class SpiceTypedHandler extends TypedHandlerDelegate {
 
         Caret caret = editor.getCaretModel().getCurrentCaret();
         int offset = caret.getOffset();
-        editor.getDocument().insertString(offset, ANNOTATION_START);
+        Document document = editor.getDocument();
+        String insertion = annotationInsertion(document, offset);
+        document.insertString(offset, insertion);
         caret.moveToOffset(offset + ANNOTATION_START.length());
         AutoPopupController.getInstance(project).scheduleAutoPopup(editor);
         refreshFolding(project, editor);
         return Result.STOP;
+    }
+
+    private static String annotationInsertion(Document document, int offset) {
+        int line = document.getLineNumber(offset);
+        int lineStart = document.getLineStartOffset(line);
+        int lineEnd = document.getLineEndOffset(line);
+        CharSequence content = document.getImmutableCharSequence();
+        if (isHorizontalWhitespace(content, offset, lineEnd)) {
+            return ANNOTATION_START;
+        }
+        return ANNOTATION_START
+                + "\n"
+                + content.subSequence(lineStart, offset);
     }
 
     private static boolean currentCaretIsAnnotationPosition(

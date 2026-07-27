@@ -38,6 +38,7 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
 
         assertEquals(
                 List.of(
+                        "PREFIX:// ",
                         "SIGIL:@",
                         "NAMESPACE:fixture",
                         "OPERATOR:.",
@@ -53,7 +54,7 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
                         "OPERATOR:,",
                         "PARAMETER:enabled",
                         "OPERATOR:=",
-                        "KEYWORD:true",
+                        "BOOLEAN:true",
                         "OPERATOR:)"
                 ),
                 tokens.stream()
@@ -84,17 +85,48 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
                         ))
                 .toList();
         for (String expected : List.of(
+                "PREFIX:// ",
                 "SIGIL:@",
                 "NAMESPACE:spice",
                 "KEYWORD:import",
-                "ANNOTATION:Controller",
-                "ANNOTATION:Get",
+                "IMPORT_SYMBOL:Controller",
+                "IMPORT_SYMBOL:Get",
                 "KEYWORD:as",
-                "ANNOTATION:GET",
+                "IMPORT_ALIAS:GET",
                 "KEYWORD:from",
                 "STRING:\"example.com/sdk/web\""
         )) {
             assertTrue(expected, tokens.contains(expected));
         }
+    }
+
+    public void testSegmentsTypedInterfaceReferences() {
+        String comment =
+                "// @Implements(payments.Processor, health.Checker)";
+
+        assertEquals(
+                List.of(
+                        "PREFIX:// ",
+                        "SIGIL:@",
+                        "ANNOTATION:Implements",
+                        "OPERATOR:(",
+                        "NAMESPACE:payments",
+                        "OPERATOR:.",
+                        "TYPE_REFERENCE:Processor",
+                        "OPERATOR:,",
+                        "NAMESPACE:health",
+                        "OPERATOR:.",
+                        "TYPE_REFERENCE:Checker",
+                        "OPERATOR:)"
+                ),
+                SpiceAnnotationSyntax.highlightTokens(comment).stream()
+                        .map(token -> token.kind()
+                                + ":"
+                                + comment.substring(
+                                        token.range().getStartOffset(),
+                                        token.range().getEndOffset()
+                                ))
+                        .toList()
+        );
     }
 }

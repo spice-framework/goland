@@ -31,6 +31,12 @@
         implementationClass="com.github.stevenbuglione.spice.goland.SpiceAnnotationLineMarkerProvider"/>
     <colorSettingsPage
         implementation="com.github.stevenbuglione.spice.goland.SpiceColorSettingsPage"/>
+    <additionalTextAttributes
+        scheme="Default"
+        file="colorSchemes/SpiceDefault.xml"/>
+    <additionalTextAttributes
+        scheme="Darcula"
+        file="colorSchemes/SpiceDarcula.xml"/>
     <platform.lsp.integrationProvider
         implementation="com.github.stevenbuglione.spice.goland.SpiceLspIntegrationProvider"/>
     <configurationType

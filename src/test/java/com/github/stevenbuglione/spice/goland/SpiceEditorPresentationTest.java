@@ -6,24 +6,68 @@ import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.editor.ex.EditorEx;
+import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
+import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.imageio.ImageIO;
 import javax.swing.JComponent;
 
 public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
     private static final int COMPARISON_BLOCK = 8;
-    private static final double MAXIMUM_MEAN_BLOCK_DELTA = 10.0;
-    private static final double MAXIMUM_CHANGED_BLOCK_FRACTION = 0.20;
+    private static final double MAXIMUM_MEAN_BLOCK_DELTA = 5.0;
+    private static final double MAXIMUM_CHANGED_BLOCK_FRACTION = 0.08;
     private static final int CHANGED_BLOCK_DELTA = 24;
+
+    public void testColorSettingsExposeEverySpiceTokenClass() {
+        SpiceColorSettingsPage page = new SpiceColorSettingsPage();
+        Set<String> descriptors = new HashSet<>();
+        Arrays.stream(page.getAttributeDescriptors())
+                .forEach(descriptor ->
+                        descriptors.add(descriptor.getDisplayName()));
+        assertEquals(
+                Set.of(
+                        "Comment prefix",
+                        "Annotation sigil",
+                        "Annotation namespace",
+                        "Annotation name",
+                        "Argument name",
+                        "Imported symbol",
+                        "Import alias",
+                        "Type reference",
+                        "String value",
+                        "Number value",
+                        "Boolean value",
+                        "Identifier value",
+                        "Directive keyword",
+                        "Punctuation",
+                        "Unresolved symbol",
+                        "Deprecated symbol"
+                ),
+                descriptors
+        );
+
+        Map<String, TextAttributesKey> tags =
+                page.getAdditionalHighlightingTagToDescriptorMap();
+        assertEquals(SpiceHighlighting.IMPORT_SYMBOL, tags.get("importSymbol"));
+        assertEquals(SpiceHighlighting.IMPORT_ALIAS, tags.get("importAlias"));
+        assertEquals(SpiceHighlighting.TYPE_REFERENCE, tags.get("type"));
+        assertEquals(SpiceHighlighting.UNRESOLVED, tags.get("unresolved"));
+        assertEquals(SpiceHighlighting.DEPRECATED, tags.get("deprecated"));
+        assertTrue(page.getDemoText().contains("<importAlias>GET</importAlias>"));
+        assertTrue(page.getDemoText().contains("<type>payments.Processor</type>"));
+    }
 
     public void testRendersConcealedStructuredAnnotations() throws IOException {
         String source = """
@@ -40,6 +84,7 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 // @management.Enable(expose=["health", "metrics"])
                 // @data.Transactional(readOnly=true, isolation="serializable")
                 // @event.Listener(order=10)
+                // @Implements(payments.Processor, health.Checker)
                 func main() {
                     os.Exit(spiceMain(os.Args[1:]))
                 }
@@ -50,6 +95,12 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 .updateFoldRegions(myFixture.getEditor());
 
         int management = source.indexOf("// @management.Enable");
+        assertHighlightAt(
+                highlights,
+                management,
+                "// ".length(),
+                SpiceHighlighting.PREFIX
+        );
         assertHighlightAt(
                 highlights,
                 management + "// @".length(),
@@ -84,7 +135,7 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 highlights,
                 source,
                 "true",
-                SpiceHighlighting.KEYWORD
+                SpiceHighlighting.BOOLEAN
         );
         assertHighlight(
                 highlights,
@@ -92,13 +143,31 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 "10",
                 SpiceHighlighting.NUMBER
         );
+        assertHighlight(
+                highlights,
+                source,
+                "Processor",
+                SpiceHighlighting.TYPE_REFERENCE
+        );
+        assertHighlight(
+                highlights,
+                source,
+                "Application",
+                SpiceHighlighting.IMPORT_SYMBOL
+        );
         assertEquals(
-                8,
+                9,
                 List.of(myFixture.getEditor().getFoldingModel().getAllFoldRegions())
                         .stream()
                         .filter(region -> region.getPlaceholderText().isEmpty())
                         .filter(region -> !region.isExpanded())
                         .count()
+        );
+        assertConcealmentReclaimsWidth(source, "@Application", "func main");
+        assertEquals(
+                "folding changed physical source",
+                source,
+                myFixture.getEditor().getDocument().getText()
         );
 
         String output = System.getProperty("spice.visual.output");
@@ -110,6 +179,8 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                     .getScheme("Darcula");
             assertNotNull("Default color scheme", lightScheme);
             assertNotNull("Darcula color scheme", dark);
+            assertSchemePalette(lightScheme, false);
+            assertSchemePalette(dark, true);
             EditorEx editor = (EditorEx) myFixture.getEditor();
             EditorColorsScheme original = editor.getColorsScheme();
             try {
@@ -121,6 +192,7 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 );
                 editor.setColorsScheme(dark);
                 editor.reinitSettings();
+                assertOpenEditorTracksSchemeChanges(editor);
                 renderEditor(
                         light.resolveSibling("spice-annotations-dark.png"),
                         "/goldens/spice-annotations-dark.png"
@@ -129,6 +201,109 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 editor.setColorsScheme(original);
                 editor.reinitSettings();
             }
+        }
+    }
+
+    private void assertConcealmentReclaimsWidth(
+            String source,
+            String concealedToken,
+            String ordinaryToken
+    ) {
+        EditorEx editor = (EditorEx) myFixture.getEditor();
+        int concealedOffset = source.indexOf(concealedToken);
+        int ordinaryOffset = source.indexOf(ordinaryToken);
+        Point concealed = editor.visualPositionToXY(
+                editor.offsetToVisualPosition(concealedOffset)
+        );
+        Point ordinary = editor.visualPositionToXY(
+                editor.offsetToVisualPosition(ordinaryOffset)
+        );
+        assertEquals(
+                "concealed // prefix still consumes horizontal editor width",
+                ordinary.x,
+                concealed.x
+        );
+    }
+
+    private static void assertSchemePalette(
+            EditorColorsScheme scheme,
+            boolean dark
+    ) {
+        assertForeground(
+                scheme,
+                SpiceHighlighting.SIGIL,
+                dark ? 0xffc66d : 0xc55a11
+        );
+        assertForeground(
+                scheme,
+                SpiceHighlighting.NAMESPACE,
+                dark ? 0x56a8f5 : 0x00627a
+        );
+        assertForeground(
+                scheme,
+                SpiceHighlighting.ANNOTATION,
+                dark ? 0xd5b778 : 0x9c3d10
+        );
+        assertForeground(
+                scheme,
+                SpiceHighlighting.PARAMETER,
+                dark ? 0xc77dbb : 0x871094
+        );
+        assertForeground(
+                scheme,
+                SpiceHighlighting.IMPORT_SYMBOL,
+                dark ? 0xdcbdfb : 0x7a3e9d
+        );
+        assertForeground(
+                scheme,
+                SpiceHighlighting.TYPE_REFERENCE,
+                dark ? 0x56a8f5 : 0x00627a
+        );
+        assertForeground(
+                scheme,
+                SpiceHighlighting.STRING,
+                dark ? 0x6aab73 : 0x067d17
+        );
+        assertForeground(
+                scheme,
+                SpiceHighlighting.BOOLEAN,
+                dark ? 0xcf8e6d : 0x0033b3
+        );
+    }
+
+    private static void assertForeground(
+            EditorColorsScheme scheme,
+            TextAttributesKey key,
+            int rgb
+    ) {
+        TextAttributes attributes = scheme.getAttributes(key);
+        assertNotNull(key.getExternalName() + " attributes", attributes);
+        assertEquals(
+                key.getExternalName() + " foreground",
+                new Color(rgb),
+                attributes.getForegroundColor()
+        );
+    }
+
+    private static void assertOpenEditorTracksSchemeChanges(EditorEx editor) {
+        EditorColorsScheme scheme = editor.getColorsScheme();
+        TextAttributes original = scheme.getAttributes(SpiceHighlighting.SIGIL);
+        assertNotNull("sigil attributes", original);
+        TextAttributes changed = original.clone();
+        changed.setForegroundColor(new Color(0xff00ff));
+        try {
+            scheme.setAttributes(SpiceHighlighting.SIGIL, changed);
+            editor.reinitSettings();
+            assertEquals(
+                    "open editor retained a stale Spice color",
+                    new Color(0xff00ff),
+                    editor.getColorsScheme()
+                            .getAttributes(SpiceHighlighting.SIGIL)
+                            .getForegroundColor()
+            );
+        } finally {
+            scheme.setAttributes(SpiceHighlighting.SIGIL, original);
+            editor.reinitSettings();
         }
     }
 

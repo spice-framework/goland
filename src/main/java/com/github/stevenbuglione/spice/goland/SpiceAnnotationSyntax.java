@@ -59,6 +59,7 @@ final class SpiceAnnotationSyntax {
         }
         Match match = parsed.orElseThrow();
         List<Token> tokens = new ArrayList<>();
+        tokens.add(new Token(TokenKind.PREFIX, match.prefixRange()));
         addAnnotationNameTokens(tokens, comment, match.referenceRange());
         int offset = match.referenceRange().getEndOffset();
         while (offset < comment.length()) {
@@ -94,15 +95,28 @@ final class SpiceAnnotationSyntax {
                         && Character.isWhitespace(comment.charAt(next))) {
                     next++;
                 }
-                TokenKind kind = next < comment.length()
-                        && comment.charAt(next) == '='
-                        ? TokenKind.PARAMETER
-                        : TokenKind.KEYWORD;
+                if (next < comment.length() && comment.charAt(next) == '.') {
+                    offset = addQualifiedTypeTokens(tokens, comment, offset, end);
+                    continue;
+                }
+                String identifier = comment.substring(offset, end);
+                TokenKind kind;
+                if (next < comment.length() && comment.charAt(next) == '=') {
+                    kind = TokenKind.PARAMETER;
+                } else if (identifier.equals("true")
+                        || identifier.equals("false")
+                        || identifier.equals("nil")) {
+                    kind = TokenKind.BOOLEAN;
+                } else if (Character.isUpperCase(identifier.charAt(0))) {
+                    kind = TokenKind.TYPE_REFERENCE;
+                } else {
+                    kind = TokenKind.IDENTIFIER;
+                }
                 tokens.add(new Token(kind, new TextRange(offset, end)));
                 offset = end;
                 continue;
             }
-            if ("()[]=,".indexOf(value) >= 0) {
+            if ("()[]=,{}*:".indexOf(value) >= 0) {
                 tokens.add(new Token(
                         TokenKind.OPERATOR,
                         new TextRange(offset, offset + 1)
@@ -158,6 +172,10 @@ final class SpiceAnnotationSyntax {
             return List.of();
         }
         List<Token> tokens = new ArrayList<>();
+        tokens.add(new Token(
+                TokenKind.PREFIX,
+                new TextRange(0, PREFIX.length() - 1)
+        ));
         int sigil = PREFIX.length() - 1;
         tokens.add(new Token(TokenKind.SIGIL, new TextRange(sigil, sigil + 1)));
         int spiceStart = sigil + 1;
@@ -175,6 +193,9 @@ final class SpiceAnnotationSyntax {
                 TokenKind.KEYWORD,
                 new TextRange(separator + 1, importEnd)
         ));
+        boolean namespaceImport = comment.substring(importEnd).stripLeading()
+                .startsWith("*");
+        boolean aliasFollows = false;
         int offset = importEnd;
         while (offset < comment.length()) {
             char value = comment.charAt(offset);
@@ -195,9 +216,18 @@ final class SpiceAnnotationSyntax {
                     end++;
                 }
                 String identifier = comment.substring(offset, end);
-                TokenKind kind = identifier.equals("as") || identifier.equals("from")
-                        ? TokenKind.KEYWORD
-                        : TokenKind.ANNOTATION;
+                TokenKind kind;
+                if (identifier.equals("as") || identifier.equals("from")) {
+                    kind = TokenKind.KEYWORD;
+                    aliasFollows = identifier.equals("as");
+                } else if (aliasFollows) {
+                    kind = namespaceImport
+                            ? TokenKind.NAMESPACE
+                            : TokenKind.IMPORT_ALIAS;
+                    aliasFollows = false;
+                } else {
+                    kind = TokenKind.IMPORT_SYMBOL;
+                }
                 tokens.add(new Token(kind, new TextRange(offset, end)));
                 offset = end;
                 continue;
@@ -211,6 +241,42 @@ final class SpiceAnnotationSyntax {
             offset++;
         }
         return List.copyOf(tokens);
+    }
+
+    private static int addQualifiedTypeTokens(
+            List<Token> tokens,
+            String comment,
+            int start,
+            int firstEnd
+    ) {
+        int segmentStart = start;
+        int segmentEnd = firstEnd;
+        while (segmentEnd < comment.length()
+                && comment.charAt(segmentEnd) == '.') {
+            tokens.add(new Token(
+                    TokenKind.NAMESPACE,
+                    new TextRange(segmentStart, segmentEnd)
+            ));
+            tokens.add(new Token(
+                    TokenKind.OPERATOR,
+                    new TextRange(segmentEnd, segmentEnd + 1)
+            ));
+            segmentStart = segmentEnd + 1;
+            if (segmentStart >= comment.length()
+                    || !isIdentifierStart(comment.charAt(segmentStart))) {
+                return segmentStart;
+            }
+            segmentEnd = segmentStart + 1;
+            while (segmentEnd < comment.length()
+                    && isIdentifierCharacter(comment.charAt(segmentEnd))) {
+                segmentEnd++;
+            }
+        }
+        tokens.add(new Token(
+                TokenKind.TYPE_REFERENCE,
+                new TextRange(segmentStart, segmentEnd)
+        ));
+        return segmentEnd;
     }
 
     private static int quotedEnd(String comment, int start) {
@@ -259,12 +325,18 @@ final class SpiceAnnotationSyntax {
     }
 
     enum TokenKind {
+        PREFIX,
         SIGIL,
         NAMESPACE,
         ANNOTATION,
         PARAMETER,
+        IMPORT_SYMBOL,
+        IMPORT_ALIAS,
+        TYPE_REFERENCE,
         STRING,
         NUMBER,
+        BOOLEAN,
+        IDENTIFIER,
         KEYWORD,
         OPERATOR
     }
