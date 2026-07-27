@@ -61,12 +61,6 @@ intellijPlatform {
 }
 
 tasks {
-    processResources {
-        from("../../docs/annotations.md") {
-            into("spice")
-        }
-    }
-
     jar {
         from("../../LICENSE")
     }

@@ -25,6 +25,11 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
 
                 import "os"
 
+                // @spice.import { Application } from "github.com/StevenBuglione/spice/annotation/core"
+                // @spice.import * as management from "github.com/StevenBuglione/spice/annotation/management"
+                // @spice.import * as data from "github.com/StevenBuglione/spice/annotation/data"
+                // @spice.import * as event from "github.com/StevenBuglione/spice/annotation/event"
+
                 // @Application
                 // @management.Enable(expose=["health", "metrics"])
                 // @data.Transactional(readOnly=true, isolation="serializable")
@@ -38,11 +43,24 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
         CodeFoldingManager.getInstance(getProject())
                 .updateFoldRegions(myFixture.getEditor());
 
-        assertHighlight(
+        int management = source.indexOf("// @management.Enable");
+        assertHighlightAt(
                 highlights,
-                source,
-                "@management.Enable",
+                management + "// @".length(),
+                "management".length(),
+                SpiceHighlighting.NAMESPACE
+        );
+        assertHighlightAt(
+                highlights,
+                management + "// @management.".length(),
+                "Enable".length(),
                 SpiceHighlighting.ANNOTATION
+        );
+        assertHighlightAt(
+                highlights,
+                management + "// ".length(),
+                1,
+                SpiceHighlighting.SIGIL
         );
         assertHighlight(
                 highlights,
@@ -69,7 +87,7 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 SpiceHighlighting.NUMBER
         );
         assertEquals(
-                4,
+                8,
                 List.of(myFixture.getEditor().getFoldingModel().getAllFoldRegions())
                         .stream()
                         .filter(region -> region.getPlaceholderText().isEmpty())
@@ -109,6 +127,21 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 highlights.stream().anyMatch(info ->
                         info.startOffset == start
                                 && info.endOffset == start + token.length()
+                                && key.equals(info.forcedTextAttributesKey))
+        );
+    }
+
+    private static void assertHighlightAt(
+            List<HighlightInfo> highlights,
+            int start,
+            int length,
+            TextAttributesKey key
+    ) {
+        assertTrue(
+                "missing " + key.getExternalName() + " at " + start,
+                highlights.stream().anyMatch(info ->
+                        info.startOffset == start
+                                && info.endOffset == start + length
                                 && key.equals(info.forcedTextAttributesKey))
         );
     }

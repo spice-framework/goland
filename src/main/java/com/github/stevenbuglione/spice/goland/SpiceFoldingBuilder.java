@@ -29,8 +29,10 @@ public final class SpiceFoldingBuilder extends FoldingBuilderEx implements DumbA
             @Override
             public void visitElement(@NotNull PsiElement element) {
                 if (element instanceof PsiComment comment) {
-                    SpiceAnnotationSyntax.parse(comment.getText()).ifPresent(match -> {
-                        TextRange range = match.prefixRange().shiftRight(
+                    SpiceAnnotationSyntax.concealmentRange(
+                            comment.getText()
+                    ).ifPresent(prefixRange -> {
+                        TextRange range = prefixRange.shiftRight(
                                 comment.getTextRange().getStartOffset()
                         );
                         descriptors.add(new FoldingDescriptor(

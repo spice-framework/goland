@@ -19,7 +19,10 @@ final class SpiceAnnotationReference extends PsiReferenceBase<PsiComment>
 
     @Override
     public @Nullable PsiElement resolve() {
-        return SpiceAnnotationIndex.getInstance(myElement.getProject()).resolve(name);
+        return SpiceAnnotationIndex.getInstance(myElement.getProject()).resolve(
+                myElement,
+                name
+        );
     }
 
     @Override

@@ -4,6 +4,14 @@ import com.intellij.openapi.editor.DefaultLanguageHighlighterColors;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 
 final class SpiceHighlighting {
+    static final TextAttributesKey SIGIL = key(
+            "SPICE_ANNOTATION_SIGIL",
+            DefaultLanguageHighlighterColors.OPERATION_SIGN
+    );
+    static final TextAttributesKey NAMESPACE = key(
+            "SPICE_ANNOTATION_NAMESPACE",
+            DefaultLanguageHighlighterColors.CLASS_REFERENCE
+    );
     static final TextAttributesKey ANNOTATION = key(
             "SPICE_ANNOTATION",
             DefaultLanguageHighlighterColors.METADATA
@@ -33,6 +41,8 @@ final class SpiceHighlighting {
 
     static TextAttributesKey forKind(SpiceAnnotationSyntax.TokenKind kind) {
         return switch (kind) {
+            case SIGIL -> SIGIL;
+            case NAMESPACE -> NAMESPACE;
             case ANNOTATION -> ANNOTATION;
             case PARAMETER -> PARAMETER;
             case STRING -> STRING;

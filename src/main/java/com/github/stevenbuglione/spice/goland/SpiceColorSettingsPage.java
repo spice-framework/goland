@@ -15,6 +15,8 @@ import org.jetbrains.annotations.Nullable;
 
 public final class SpiceColorSettingsPage implements ColorSettingsPage {
     private static final AttributesDescriptor[] DESCRIPTORS = {
+            new AttributesDescriptor("Annotation sigil", SpiceHighlighting.SIGIL),
+            new AttributesDescriptor("Annotation namespace", SpiceHighlighting.NAMESPACE),
             new AttributesDescriptor("Annotation name", SpiceHighlighting.ANNOTATION),
             new AttributesDescriptor("Argument name", SpiceHighlighting.PARAMETER),
             new AttributesDescriptor("String value", SpiceHighlighting.STRING),
@@ -36,6 +38,8 @@ public final class SpiceColorSettingsPage implements ColorSettingsPage {
         }
     };
     private static final Map<String, TextAttributesKey> TAGS = Map.of(
+            "sigil", SpiceHighlighting.SIGIL,
+            "namespace", SpiceHighlighting.NAMESPACE,
             "annotation", SpiceHighlighting.ANNOTATION,
             "parameter", SpiceHighlighting.PARAMETER,
             "string", SpiceHighlighting.STRING,
@@ -57,10 +61,10 @@ public final class SpiceColorSettingsPage implements ColorSettingsPage {
     @Override
     public @NotNull String getDemoText() {
         return """
-                // <annotation>@Application</annotation>
-                // <annotation>@management.Enable</annotation><operator>(</operator><parameter>expose</parameter><operator>=</operator><operator>[</operator><string>"health"</string><operator>,</operator> <string>"metrics"</string><operator>]</operator><operator>)</operator>
-                // <annotation>@data.Transactional</annotation><operator>(</operator><parameter>readOnly</parameter><operator>=</operator><keyword>true</keyword><operator>,</operator> <parameter>isolation</parameter><operator>=</operator><string>"serializable"</string><operator>)</operator>
-                // <annotation>@event.Listener</annotation><operator>(</operator><parameter>order</parameter><operator>=</operator><number>10</number><operator>)</operator>
+                // <sigil>@</sigil><annotation>Application</annotation>
+                // <sigil>@</sigil><namespace>management</namespace><operator>.</operator><annotation>Enable</annotation><operator>(</operator><parameter>expose</parameter><operator>=</operator><operator>[</operator><string>"health"</string><operator>,</operator> <string>"metrics"</string><operator>]</operator><operator>)</operator>
+                // <sigil>@</sigil><namespace>data</namespace><operator>.</operator><annotation>Transactional</annotation><operator>(</operator><parameter>readOnly</parameter><operator>=</operator><keyword>true</keyword><operator>,</operator> <parameter>isolation</parameter><operator>=</operator><string>"serializable"</string><operator>)</operator>
+                // <sigil>@</sigil><namespace>event</namespace><operator>.</operator><annotation>Listener</annotation><operator>(</operator><parameter>order</parameter><operator>=</operator><number>10</number><operator>)</operator>
                 """;
     }
 

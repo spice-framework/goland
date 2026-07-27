@@ -38,7 +38,10 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
 
         assertEquals(
                 List.of(
-                        "ANNOTATION:@fixture.Sample",
+                        "SIGIL:@",
+                        "NAMESPACE:fixture",
+                        "OPERATOR:.",
+                        "ANNOTATION:Sample",
                         "OPERATOR:(",
                         "PARAMETER:name",
                         "OPERATOR:=",
@@ -62,5 +65,36 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
                                 ))
                         .toList()
         );
+    }
+
+    public void testSegmentsAndConcealsAnnotationImports() {
+        String comment =
+                "// @spice.import { Controller, Get as GET } from \"example.com/sdk/web\"";
+        assertEquals(
+                new TextRange(0, 3),
+                SpiceAnnotationSyntax.concealmentRange(comment).orElseThrow()
+        );
+        List<String> tokens = SpiceAnnotationSyntax.highlightTokens(comment)
+                .stream()
+                .map(token -> token.kind()
+                        + ":"
+                        + comment.substring(
+                                token.range().getStartOffset(),
+                                token.range().getEndOffset()
+                        ))
+                .toList();
+        for (String expected : List.of(
+                "SIGIL:@",
+                "NAMESPACE:spice",
+                "KEYWORD:import",
+                "ANNOTATION:Controller",
+                "ANNOTATION:Get",
+                "KEYWORD:as",
+                "ANNOTATION:GET",
+                "KEYWORD:from",
+                "STRING:\"example.com/sdk/web\""
+        )) {
+            assertTrue(expected, tokens.contains(expected));
+        }
     }
 }

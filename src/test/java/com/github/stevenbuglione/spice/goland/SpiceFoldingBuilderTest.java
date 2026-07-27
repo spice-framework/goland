@@ -19,6 +19,7 @@ public final class SpiceFoldingBuilderTest extends BasePlatformTestCase {
         String source = """
                 package main
 
+                // @spice.import { Application } from "example.com/sdk/core"
                 // @Application
                 // ordinary comment
                 func main() {}
@@ -32,12 +33,20 @@ public final class SpiceFoldingBuilderTest extends BasePlatformTestCase {
                 false
         );
 
-        assertEquals(1, descriptors.length);
+        assertEquals(2, descriptors.length);
         int prefixStart = source.indexOf("// @Application");
-        assertEquals(new TextRange(prefixStart, prefixStart + 3), descriptors[0].getRange());
-        assertEquals("", descriptors[0].getPlaceholderText());
-        assertEquals(Boolean.TRUE, descriptors[0].isCollapsedByDefault());
-        assertTrue(descriptors[0].isNonExpandable());
+        int importStart = source.indexOf("// @spice.import");
+        assertEquals(
+                new TextRange(importStart, importStart + 3),
+                descriptors[0].getRange()
+        );
+        assertEquals(
+                new TextRange(prefixStart, prefixStart + 3),
+                descriptors[1].getRange()
+        );
+        assertEquals("", descriptors[1].getPlaceholderText());
+        assertEquals(Boolean.TRUE, descriptors[1].isCollapsedByDefault());
+        assertTrue(descriptors[1].isNonExpandable());
 
         AtomicReference<FoldRegion> region = new AtomicReference<>();
         myFixture.getEditor().getFoldingModel().runBatchFoldingOperation(() -> {
