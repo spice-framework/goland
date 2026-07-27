@@ -45,9 +45,45 @@ public final class SpiceAnnotationLineMarkerProvider implements LineMarkerProvid
             return null;
         }
         String provenance = descriptor.packagePath() + "." + descriptor.symbol();
+        SpiceDescriptorMetadata metadata =
+                SpiceAnnotationIndex.getInstance(comment.getProject())
+                        .metadata(comment, match.name(), descriptor);
+        String tooltip = "Spice annotation from " + provenance;
+        if (metadata != null) {
+            tooltip += provenanceDetails(metadata);
+        }
         return NavigationGutterIconBuilder.create(AllIcons.Nodes.Annotationtype)
                 .setTarget(target)
-                .setTooltipText("Spice annotation from " + provenance)
+                .setTooltipText(tooltip)
                 .createLineMarkerInfo(comment);
+    }
+
+    private static String provenanceDetails(SpiceDescriptorMetadata metadata) {
+        StringBuilder result = new StringBuilder();
+        if (!metadata.provenance().version().isBlank()) {
+            result.append(" | version ")
+                    .append(metadata.provenance().version());
+        }
+        if (!metadata.provenance().replacement().isBlank()) {
+            result.append(" | replace ")
+                    .append(metadata.provenance().replacement());
+        }
+        if (!metadata.tool().isBlank()) {
+            result.append(" | tool ").append(metadata.tool());
+        }
+        if (!metadata.handler().isBlank()) {
+            result.append(" | handler ").append(metadata.handler());
+        }
+        if (!metadata.protocol().isBlank()) {
+            result.append(" | protocol ").append(metadata.protocol());
+        }
+        if (metadata.provenance().authorizationKnown()) {
+            result.append(
+                    metadata.provenance().authorized()
+                            ? " | tool authorized"
+                            : " | tool not authorized"
+            );
+        }
+        return result.toString();
     }
 }

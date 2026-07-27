@@ -10,7 +10,13 @@ public final class SpiceAnnotationLineMarkerProviderTest
     public void testShowsResolvedDescriptorProvenanceInGutter() {
         myFixture.configureByText(
                 "go.mod",
-                "module example.com/application\n\ngo 1.26.0\n"
+                """
+                        module example.com/application
+
+                        go 1.26.0
+
+                        tool example.com/application/cmd/annotations
+                        """
         );
         myFixture.addFileToProject(
                 "annotation/core/application.go",
@@ -21,7 +27,13 @@ public final class SpiceAnnotationLineMarkerProviderTest
 
                         // Application is the real descriptor.
                         func Application() Definition {
-                            return Definition{}
+                            return Definition{
+                                Implementation: sdk.Implementation{
+                                    Tool: "example.com/application/cmd/annotations",
+                                    Handler: "core/application",
+                                    Protocol: sdk.ProtocolV1Alpha2,
+                                },
+                            }
                         }
                         """
         );
@@ -44,7 +56,12 @@ public final class SpiceAnnotationLineMarkerProviderTest
         assertNotNull(marker);
         assertEquals(
                 "Spice annotation from "
-                        + "example.com/application/annotation/core.Application",
+                        + "example.com/application/annotation/core.Application"
+                        + " | version (workspace)"
+                        + " | tool example.com/application/cmd/annotations"
+                        + " | handler core/application"
+                        + " | protocol sdk.ProtocolV1Alpha2"
+                        + " | tool authorized",
                 marker.getLineMarkerTooltip()
         );
         assertNotNull(marker.getNavigationHandler());

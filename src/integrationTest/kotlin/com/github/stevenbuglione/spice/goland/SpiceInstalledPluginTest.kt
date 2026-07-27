@@ -10,6 +10,7 @@ import com.intellij.driver.sdk.ui.components.common.JEditorUiComponent
 import com.intellij.driver.sdk.ui.components.common.codeEditor
 import com.intellij.driver.sdk.ui.components.common.editorTabs
 import com.intellij.driver.sdk.ui.components.common.ideFrame
+import com.intellij.driver.sdk.ui.components.common.popups.DocumentationHintEditorPaneUi
 import com.intellij.driver.sdk.waitForIndicators
 import com.intellij.driver.model.LockSemantics
 import com.intellij.driver.model.OnDispatcher
@@ -25,6 +26,7 @@ import java.io.File
 import java.awt.Rectangle
 import java.awt.Robot
 import java.awt.image.BufferedImage
+import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.nio.file.Files
 import java.nio.file.Path
@@ -235,6 +237,134 @@ class SpiceInstalledPluginTest {
                         )
                     }
 
+                    val applicationAt = sourceBefore.indexOf("@Application")
+                    val documentationPoint = driver.withContext(
+                        OnDispatcher.EDT,
+                        LockSemantics.NO_LOCK,
+                    ) {
+                        editor.offsetToXY(applicationAt + 2)
+                    }
+                    val documentationLocation = component.getLocationOnScreen()
+                    localRobot.mouseMove(
+                        documentationLocation.x + documentationPoint.x,
+                        documentationLocation.y + documentationPoint.y + 8,
+                    )
+                    localRobot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
+                    localRobot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
+                    localRobot.waitForIdle()
+                    driver.invokeAction("QuickJavaDoc")
+                    Thread.sleep(2_000)
+                    val documentationPanes:
+                        List<DocumentationHintEditorPaneUi> = frame.xx(
+                        DocumentationHintEditorPaneUi::class.java,
+                    ) {
+                        byClass("DocumentationHintEditorPane")
+                    }.list()
+                    val documentation = documentationPanes
+                        .map(DocumentationHintEditorPaneUi::getText)
+                        .firstOrNull { it.contains("Application marks") }
+                    assertTrue(
+                        documentation != null,
+                        "Quick Documentation must render descriptor GoDoc; "
+                            + "actual panes: ${
+                                documentationPanes.map(
+                                    DocumentationHintEditorPaneUi::getText,
+                                )
+                            }",
+                    )
+                    listOf(
+                        "Descriptor",
+                        "Targets",
+                        "Tool",
+                        "Handler",
+                        "Protocol",
+                        "ApplicationHandler",
+                    ).forEach { section ->
+                        assertTrue(
+                            documentation!!.contains(section),
+                            "Quick Documentation is missing $section",
+                        )
+                    }
+                    val documentationImage = captureEditor(localRobot, this)
+                    assertNotBlank(documentationImage)
+                    assertTrue(
+                        ImageIO.write(
+                            documentationImage,
+                            "png",
+                            screenshotDirectory
+                                .resolve("spice-installed-documentation.png")
+                                .toFile(),
+                        ),
+                    )
+                    localRobot.keyPress(KeyEvent.VK_ESCAPE)
+                    localRobot.keyRelease(KeyEvent.VK_ESCAPE)
+                    localRobot.waitForIdle()
+
+                    assertModifierHoverUnderline(
+                        localRobot,
+                        this,
+                        applicationAt,
+                        "@Application".length,
+                    )
+
+                    val clickPoint = driver.withContext(
+                        OnDispatcher.EDT,
+                        LockSemantics.NO_LOCK,
+                    ) {
+                        editor.offsetToXY(applicationAt + 2)
+                    }
+                    val editorLocation = component.getLocationOnScreen()
+                    localRobot.keyPress(KeyEvent.VK_CONTROL)
+                    localRobot.mouseMove(
+                        editorLocation.x + clickPoint.x,
+                        editorLocation.y + clickPoint.y + 8,
+                    )
+                    localRobot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
+                    localRobot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
+                    localRobot.keyRelease(KeyEvent.VK_CONTROL)
+                    localRobot.waitForIdle()
+                    awaitEditorContains(this, "func Application()")
+                    assertTrue(
+                        text.contains("func Application()"),
+                        "Ctrl-click must open the real descriptor function",
+                    )
+                    driver.invokeAction("Back")
+                    localRobot.waitForIdle()
+                    awaitEditorContains(this, "// @Application")
+
+                    driver.invokeAction("ActivateSpiceToolWindow")
+                    Thread.sleep(6_000)
+                    val healthText = frame.getAllTexts { true }
+                        .joinToString("\n") { it.text }
+                    listOf(
+                        "Spice executable:",
+                        "Spice version:",
+                        "Go version:",
+                        "Module root:",
+                        "LSP state:",
+                        "Dependency mode:",
+                        "Authorized annotation tools:",
+                    ).forEach { field ->
+                        assertTrue(
+                            healthText.contains(field),
+                            "Spice health view is missing $field; "
+                                + "actual text: $healthText",
+                        )
+                    }
+                    val healthImage = captureFrame(localRobot, frame)
+                    assertNotBlank(healthImage)
+                    assertTrue(
+                        ImageIO.write(
+                            healthImage,
+                            "png",
+                            screenshotDirectory
+                                .resolve("spice-installed-health.png")
+                                .toFile(),
+                        ),
+                    )
+                    driver.invokeAction("HideActiveWindow")
+                    localRobot.waitForIdle()
+
                     driver.changeTheme(IdeTheme.LIGHT)
                     robot.waitForIdle()
                     val light = captureEditor(localRobot, this)
@@ -279,6 +409,91 @@ class SpiceInstalledPluginTest {
             sourceBefore,
             Files.readString(sourceFile),
             "installed-plugin presentation must not mutate physical Go source",
+        )
+    }
+
+    private fun captureFrame(
+        robot: Robot,
+        frame: IdeaFrameUI,
+    ): BufferedImage {
+        val component = frame.component
+        val location = component.getLocationOnScreen()
+        return robot.createScreenCapture(
+            Rectangle(
+                location.x,
+                location.y,
+                component.width,
+                component.height,
+            ),
+        )
+    }
+
+    private fun assertModifierHoverUnderline(
+        robot: Robot,
+        editor: JEditorUiComponent,
+        offset: Int,
+        length: Int,
+    ) {
+        val start = editor.driver.withContext(
+            OnDispatcher.EDT,
+            LockSemantics.NO_LOCK,
+        ) {
+            editor.editor.offsetToXY(offset)
+        }
+        val end = editor.driver.withContext(
+            OnDispatcher.EDT,
+            LockSemantics.NO_LOCK,
+        ) {
+            editor.editor.offsetToXY(offset + length)
+        }
+        val location = editor.component.getLocationOnScreen()
+        val bounds = Rectangle(
+            location.x + start.x,
+            location.y + start.y,
+            (end.x - start.x).coerceAtLeast(12),
+            24,
+        )
+        robot.mouseMove(location.x + editor.component.width - 20, location.y + 20)
+        robot.waitForIdle()
+        val before = robot.createScreenCapture(bounds)
+        robot.keyPress(KeyEvent.VK_CONTROL)
+        robot.mouseMove(
+            location.x + start.x + (end.x - start.x).coerceAtLeast(2) / 2,
+            location.y + start.y + 8,
+        )
+        Thread.sleep(500)
+        val during = robot.createScreenCapture(bounds)
+        robot.keyRelease(KeyEvent.VK_CONTROL)
+        robot.waitForIdle()
+
+        var changed = 0
+        for (y in 0 until before.height) {
+            for (x in 0 until before.width) {
+                if (before.getRGB(x, y) != during.getRGB(x, y)) {
+                    changed++
+                }
+            }
+        }
+        assertTrue(
+            changed >= 3,
+            "modifier-hover must visibly underline the exact annotation range",
+        )
+    }
+
+    private fun awaitEditorContains(
+        editor: JEditorUiComponent,
+        expected: String,
+    ) {
+        val deadline = System.nanoTime() + 10_000_000_000L
+        while (System.nanoTime() < deadline) {
+            if (editor.text.contains(expected)) {
+                return
+            }
+            Thread.sleep(100)
+        }
+        assertTrue(
+            editor.text.contains(expected),
+            "active editor did not contain $expected within ten seconds",
         )
     }
 

@@ -1,10 +1,13 @@
 package com.github.stevenbuglione.spice.goland;
 
 import com.intellij.execution.configurations.GeneralCommandLine;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.platform.lsp.api.LspClient;
 import com.intellij.platform.lsp.api.LspIntegrationProvider;
 import com.intellij.platform.lsp.api.ProjectWideLspClientDescriptor;
+import com.intellij.platform.lsp.api.lsWidget.LspClientWidgetItem;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import org.jetbrains.annotations.NotNull;
@@ -22,6 +25,19 @@ public final class SpiceLspIntegrationProvider implements LspIntegrationProvider
                 && SpiceLspClientDescriptor.supports(file)) {
             clientStarter.ensureClientStarted(new SpiceLspClientDescriptor(project));
         }
+    }
+
+    @Override
+    public @NotNull LspClientWidgetItem createWidgetItem(
+            @NotNull LspClient client,
+            @NotNull VirtualFile file
+    ) {
+        return new LspClientWidgetItem(
+                client,
+                file,
+                AllIcons.Nodes.Annotationtype,
+                null
+        );
     }
 
     static final class SpiceLspClientDescriptor extends ProjectWideLspClientDescriptor {

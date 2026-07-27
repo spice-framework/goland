@@ -4,6 +4,7 @@ import com.intellij.openapi.util.TextRange;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 final class SpiceAnnotationSyntax {
@@ -12,6 +13,17 @@ final class SpiceAnnotationSyntax {
             "^// @spice\\.import\\s+(?:\\{[^}]+}\\s+from\\s+\"[^\"]+\""
                     + "|\\*\\s+as\\s+[A-Za-z_][A-Za-z0-9_]*"
                     + "\\s+from\\s+\"[^\"]+\")\\s*$"
+    );
+    private static final Pattern NAMED_IMPORT_DIRECTIVE = Pattern.compile(
+            "^// @spice\\.import\\s+\\{([^}]+)}\\s+from\\s+\"([^\"]+)\"\\s*$"
+    );
+    private static final Pattern NAMESPACE_IMPORT_DIRECTIVE = Pattern.compile(
+            "^// @spice\\.import\\s+\\*\\s+as\\s+"
+                    + "([A-Za-z_][A-Za-z0-9_]*)\\s+from\\s+\"([^\"]+)\"\\s*$"
+    );
+    private static final Pattern IMPORT_BINDING = Pattern.compile(
+            "^\\s*([A-Za-z_][A-Za-z0-9_]*)"
+                    + "(?:\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*$"
     );
 
     private SpiceAnnotationSyntax() {}
@@ -125,6 +137,78 @@ final class SpiceAnnotationSyntax {
             offset++;
         }
         return List.copyOf(tokens);
+    }
+
+    static Optional<ImportDirective> parseImportDirective(String comment) {
+        Matcher named = NAMED_IMPORT_DIRECTIVE.matcher(comment);
+        if (named.matches()) {
+            List<ImportBinding> bindings = new ArrayList<>();
+            String source = named.group(1);
+            int sourceStart = named.start(1);
+            int bindingStart = 0;
+            while (bindingStart <= source.length()) {
+                int separator = source.indexOf(',', bindingStart);
+                int bindingEnd = separator < 0 ? source.length() : separator;
+                Matcher binding = IMPORT_BINDING.matcher(
+                        source.substring(bindingStart, bindingEnd)
+                );
+                if (!binding.matches()) {
+                    return Optional.empty();
+                }
+                int base = sourceStart + bindingStart;
+                String imported = binding.group(1);
+                String alias = binding.group(2);
+                TextRange importedRange = new TextRange(
+                        base + binding.start(1),
+                        base + binding.end(1)
+                );
+                TextRange localRange = importedRange;
+                String localName = imported;
+                if (alias != null) {
+                    localName = alias;
+                    localRange = new TextRange(
+                            base + binding.start(2),
+                            base + binding.end(2)
+                    );
+                }
+                bindings.add(new ImportBinding(
+                        imported,
+                        importedRange,
+                        localName,
+                        localRange,
+                        false
+                ));
+                if (separator < 0) {
+                    break;
+                }
+                bindingStart = separator + 1;
+            }
+            return Optional.of(new ImportDirective(
+                    named.group(2),
+                    new TextRange(named.start(2), named.end(2)),
+                    List.copyOf(bindings)
+            ));
+        }
+
+        Matcher namespace = NAMESPACE_IMPORT_DIRECTIVE.matcher(comment);
+        if (!namespace.matches()) {
+            return Optional.empty();
+        }
+        TextRange namespaceRange = new TextRange(
+                namespace.start(1),
+                namespace.end(1)
+        );
+        return Optional.of(new ImportDirective(
+                namespace.group(2),
+                new TextRange(namespace.start(2), namespace.end(2)),
+                List.of(new ImportBinding(
+                        "",
+                        TextRange.EMPTY_RANGE,
+                        namespace.group(1),
+                        namespaceRange,
+                        true
+                ))
+        ));
     }
 
     static Optional<TextRange> concealmentRange(String comment) {
@@ -344,4 +428,18 @@ final class SpiceAnnotationSyntax {
     record Token(TokenKind kind, TextRange range) {}
 
     record Match(String name, TextRange prefixRange, TextRange referenceRange) {}
+
+    record ImportDirective(
+            String packagePath,
+            TextRange packageRange,
+            List<ImportBinding> bindings
+    ) {}
+
+    record ImportBinding(
+            String importedName,
+            TextRange importedRange,
+            String localName,
+            TextRange localRange,
+            boolean namespace
+    ) {}
 }

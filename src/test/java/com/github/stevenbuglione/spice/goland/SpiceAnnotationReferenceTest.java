@@ -6,9 +6,10 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
+import java.util.List;
 
 public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
-    public void testCreatesHighlightedReferenceToRealDescriptorFunction() {
+    public void testCreatesNavigableReferenceToRealDescriptorFunction() {
         myFixture.configureByText(
                 "go.mod",
                 "module example.com/application\n\ngo 1.26.0\n"
@@ -72,6 +73,76 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
         assertNull(references[0].resolve());
     }
 
+    public void testCreatesReferencesForEveryImportSymbolAndPackageRange() {
+        myFixture.configureByText(
+                "go.mod",
+                "module example.com/application\n\ngo 1.26.0\n"
+        );
+        myFixture.addFileToProject(
+                "annotation/web/web.go",
+                """
+                        package web
+
+                        type Definition struct{}
+
+                        func Controller() Definition { return Definition{} }
+                        func Get() Definition { return Definition{} }
+                        """
+        );
+        myFixture.configureByText(
+                "main.go",
+                """
+                        package main
+
+                        // @spice.import { Controller, Get as GET } from "example.com/application/annotation/web"
+                        // @spice.import * as web from "example.com/application/annotation/web"
+                        """
+        );
+        List<PsiComment> comments = PsiTreeUtil.findChildrenOfType(
+                myFixture.getFile(),
+                PsiComment.class
+        ).stream().toList();
+        assertEquals(2, comments.size());
+
+        PsiReference[] named =
+                SpiceAnnotationReferenceContributor.referencesFor(
+                        comments.getFirst()
+                );
+        assertEquals(4, named.length);
+        assertEquals(
+                List.of(
+                        "example.com/application/annotation/web",
+                        "Controller",
+                        "Get",
+                        "GET"
+                ),
+                List.of(named).stream()
+                        .map(PsiReference::getCanonicalText)
+                        .toList()
+        );
+        assertEquals("web", named[0].resolve().getText());
+        assertEquals("Controller", named[1].resolve().getText());
+        assertEquals("Get", named[2].resolve().getText());
+        assertEquals("Get", named[3].resolve().getText());
+
+        PsiReference[] namespace =
+                SpiceAnnotationReferenceContributor.referencesFor(
+                        comments.get(1)
+                );
+        assertEquals(2, namespace.length);
+        assertEquals(
+                List.of(
+                        "example.com/application/annotation/web",
+                        "web"
+                ),
+                List.of(namespace).stream()
+                        .map(PsiReference::getCanonicalText)
+                        .toList()
+        );
+        assertEquals("web", namespace[0].resolve().getText());
+        assertEquals("web", namespace[1].resolve().getText());
+    }
+
     public void testResolvesNamedAndNamespaceImportBindings() {
         String source = """
                 // @spice.import { Controller, Get as GET } from "example.com/sdk/web"
@@ -100,6 +171,34 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
         );
         assertNull(SpiceAnnotationIndex.resolveImport(source, "Post"));
         assertNull(SpiceAnnotationIndex.resolveImport(source, "web.bad.Name"));
+    }
+
+    public void testParsesModuleAndLocalReplacementProvenance() {
+        SpiceAnnotationIndex.ModuleLayout layout =
+                SpiceAnnotationIndex.moduleLayout(
+                        """
+                                module example.com/application
+
+                                replace (
+                                    github.com/StevenBuglione/spice v0.1.0 => ../spice
+                                    example.com/acme/plugin => D:/work/plugin
+                                )
+                                """
+                );
+        assertEquals("example.com/application", layout.modulePath());
+        assertEquals(
+                List.of(
+                        new SpiceAnnotationIndex.LocalReplacement(
+                                "github.com/StevenBuglione/spice",
+                                "../spice"
+                        ),
+                        new SpiceAnnotationIndex.LocalReplacement(
+                                "example.com/acme/plugin",
+                                "D:/work/plugin"
+                        )
+                ),
+                layout.replacements()
+        );
     }
 
     private PsiComment annotationComment(String annotation) {

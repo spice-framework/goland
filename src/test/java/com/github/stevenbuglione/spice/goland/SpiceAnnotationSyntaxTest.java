@@ -100,6 +100,59 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
         }
     }
 
+    public void testParsesExactImportReferenceRanges() {
+        String named =
+                "// @spice.import { Controller, Get as GET } from \"example.com/sdk/web\"";
+        SpiceAnnotationSyntax.ImportDirective directive =
+                SpiceAnnotationSyntax.parseImportDirective(named).orElseThrow();
+        assertEquals("example.com/sdk/web", directive.packagePath());
+        assertEquals(
+                "example.com/sdk/web",
+                text(named, directive.packageRange())
+        );
+        assertEquals(2, directive.bindings().size());
+        SpiceAnnotationSyntax.ImportBinding controller =
+                directive.bindings().getFirst();
+        assertEquals("Controller", controller.importedName());
+        assertEquals("Controller", controller.localName());
+        assertEquals("Controller", text(named, controller.importedRange()));
+        assertEquals("Controller", text(named, controller.localRange()));
+        assertFalse(controller.namespace());
+
+        SpiceAnnotationSyntax.ImportBinding get =
+                directive.bindings().get(1);
+        assertEquals("Get", text(named, get.importedRange()));
+        assertEquals("GET", text(named, get.localRange()));
+        assertEquals("GET", get.localName());
+
+        String namespace =
+                "// @spice.import * as web from \"example.com/sdk/web\"";
+        SpiceAnnotationSyntax.ImportDirective namespaceDirective =
+                SpiceAnnotationSyntax.parseImportDirective(namespace)
+                        .orElseThrow();
+        SpiceAnnotationSyntax.ImportBinding web =
+                namespaceDirective.bindings().getFirst();
+        assertTrue(web.namespace());
+        assertEquals("web", text(namespace, web.localRange()));
+        assertEquals(
+                "example.com/sdk/web",
+                text(namespace, namespaceDirective.packageRange())
+        );
+    }
+
+    public void testRejectsMalformedImportReferenceRanges() {
+        for (String source : List.of(
+                "// @spice.import {} from \"example.com/sdk/web\"",
+                "// @spice.import { Controller as } from \"example.com/sdk/web\"",
+                "// @spice.import * as 9web from \"example.com/sdk/web\""
+        )) {
+            assertTrue(
+                    source,
+                    SpiceAnnotationSyntax.parseImportDirective(source).isEmpty()
+            );
+        }
+    }
+
     public void testSegmentsTypedInterfaceReferences() {
         String comment =
                 "// @Implements(payments.Processor, health.Checker)";
@@ -128,5 +181,9 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
                                 ))
                         .toList()
         );
+    }
+
+    private static String text(String source, TextRange range) {
+        return source.substring(range.getStartOffset(), range.getEndOffset());
     }
 }
