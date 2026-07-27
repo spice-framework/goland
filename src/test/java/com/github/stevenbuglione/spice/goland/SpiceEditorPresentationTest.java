@@ -10,6 +10,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -19,6 +20,11 @@ import javax.imageio.ImageIO;
 import javax.swing.JComponent;
 
 public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
+    private static final int COMPARISON_BLOCK = 8;
+    private static final double MAXIMUM_MEAN_BLOCK_DELTA = 10.0;
+    private static final double MAXIMUM_CHANGED_BLOCK_FRACTION = 0.20;
+    private static final int CHANGED_BLOCK_DELTA = 24;
+
     public void testRendersConcealedStructuredAnnotations() throws IOException {
         String source = """
                 package main
@@ -98,16 +104,27 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
         String output = System.getProperty("spice.visual.output");
         if (output != null && !output.isBlank()) {
             Path light = Path.of(output);
-            renderEditor(light);
+            EditorColorsScheme lightScheme = EditorColorsManager.getInstance()
+                    .getScheme("Default");
             EditorColorsScheme dark = EditorColorsManager.getInstance()
                     .getScheme("Darcula");
+            assertNotNull("Default color scheme", lightScheme);
             assertNotNull("Darcula color scheme", dark);
             EditorEx editor = (EditorEx) myFixture.getEditor();
             EditorColorsScheme original = editor.getColorsScheme();
             try {
+                editor.setColorsScheme(lightScheme);
+                editor.reinitSettings();
+                renderEditor(
+                        light,
+                        "/goldens/spice-annotations-light.png"
+                );
                 editor.setColorsScheme(dark);
                 editor.reinitSettings();
-                renderEditor(light.resolveSibling("spice-annotations-dark.png"));
+                renderEditor(
+                        light.resolveSibling("spice-annotations-dark.png"),
+                        "/goldens/spice-annotations-dark.png"
+                );
             } finally {
                 editor.setColorsScheme(original);
                 editor.reinitSettings();
@@ -146,7 +163,10 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
         );
     }
 
-    private void renderEditor(Path output) throws IOException {
+    private void renderEditor(
+            Path output,
+            String goldenResource
+    ) throws IOException {
         JComponent component = myFixture.getEditor().getComponent();
         boolean createdPeer = !component.isDisplayable();
         if (createdPeer) {
@@ -168,6 +188,7 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 graphics.dispose();
             }
             assertRenderedContent(image);
+            assertMatchesGolden(image, goldenResource);
             Files.createDirectories(output.getParent());
             assertTrue(
                     "write visual report",
@@ -192,5 +213,88 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
             }
         }
         fail("visual report contains only " + colors.size() + " colors");
+    }
+
+    private void assertMatchesGolden(
+            BufferedImage image,
+            String goldenResource
+    ) throws IOException {
+        BufferedImage golden;
+        try (InputStream stream = getClass().getResourceAsStream(goldenResource)) {
+            assertNotNull("missing visual golden " + goldenResource, stream);
+            golden = ImageIO.read(stream);
+        }
+        assertNotNull("decode visual golden " + goldenResource, golden);
+        assertEquals("visual golden width", golden.getWidth(), image.getWidth());
+        assertEquals("visual golden height", golden.getHeight(), image.getHeight());
+
+        long totalDelta = 0;
+        int changedBlocks = 0;
+        int blocks = 0;
+        for (int y = 0; y < image.getHeight(); y += COMPARISON_BLOCK) {
+            for (int x = 0; x < image.getWidth(); x += COMPARISON_BLOCK) {
+                int delta = blockDelta(image, golden, x, y);
+                totalDelta += delta;
+                if (delta > CHANGED_BLOCK_DELTA) {
+                    changedBlocks++;
+                }
+                blocks++;
+            }
+        }
+        double meanDelta = (double) totalDelta / blocks;
+        double changedFraction = (double) changedBlocks / blocks;
+        assertTrue(
+                "visual golden " + goldenResource
+                        + " mean block delta " + meanDelta
+                        + " exceeds " + MAXIMUM_MEAN_BLOCK_DELTA,
+                meanDelta <= MAXIMUM_MEAN_BLOCK_DELTA
+        );
+        assertTrue(
+                "visual golden " + goldenResource
+                        + " changed block fraction " + changedFraction
+                        + " exceeds " + MAXIMUM_CHANGED_BLOCK_FRACTION,
+                changedFraction <= MAXIMUM_CHANGED_BLOCK_FRACTION
+        );
+    }
+
+    private static int blockDelta(
+            BufferedImage actual,
+            BufferedImage golden,
+            int startX,
+            int startY
+    ) {
+        long[] actualChannels = blockChannels(actual, startX, startY);
+        long[] goldenChannels = blockChannels(golden, startX, startY);
+        long delta = 0;
+        for (int channel = 0; channel < actualChannels.length; channel++) {
+            delta += Math.abs(
+                    actualChannels[channel] - goldenChannels[channel]
+            );
+        }
+        return Math.toIntExact(delta / actualChannels.length);
+    }
+
+    private static long[] blockChannels(
+            BufferedImage image,
+            int startX,
+            int startY
+    ) {
+        long[] channels = new long[3];
+        int pixels = 0;
+        int endY = Math.min(image.getHeight(), startY + COMPARISON_BLOCK);
+        int endX = Math.min(image.getWidth(), startX + COMPARISON_BLOCK);
+        for (int y = startY; y < endY; y++) {
+            for (int x = startX; x < endX; x++) {
+                int color = image.getRGB(x, y);
+                channels[0] += color >> 16 & 0xff;
+                channels[1] += color >> 8 & 0xff;
+                channels[2] += color & 0xff;
+                pixels++;
+            }
+        }
+        for (int channel = 0; channel < channels.length; channel++) {
+            channels[channel] /= pixels;
+        }
+        return channels;
     }
 }

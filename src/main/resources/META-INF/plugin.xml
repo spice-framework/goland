@@ -24,6 +24,9 @@
     <annotator
         language="go"
         implementationClass="com.github.stevenbuglione.spice.goland.SpiceAnnotationAnnotator"/>
+    <codeInsight.lineMarkerProvider
+        language="go"
+        implementationClass="com.github.stevenbuglione.spice.goland.SpiceAnnotationLineMarkerProvider"/>
     <colorSettingsPage
         implementation="com.github.stevenbuglione.spice.goland.SpiceColorSettingsPage"/>
     <platform.lsp.integrationProvider
