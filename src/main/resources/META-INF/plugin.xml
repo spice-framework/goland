@@ -18,6 +18,8 @@
         language="go"
         implementationClass="com.github.stevenbuglione.spice.goland.SpiceFoldingBuilder"
         order="first"/>
+    <typedHandler
+        implementation="com.github.stevenbuglione.spice.goland.SpiceTypedHandler"/>
     <psi.referenceContributor
         language="go"
         implementation="com.github.stevenbuglione.spice.goland.SpiceAnnotationReferenceContributor"/>
@@ -41,5 +43,10 @@
         id="Spice"
         displayType="BALLOON"
         isLogByDefault="true"/>
+  </extensions>
+
+  <extensions defaultExtensionNs="com.goide">
+    <runConfigurationExtension
+        implementation="com.github.stevenbuglione.spice.goland.SpiceGoRunConfigurationExtension"/>
   </extensions>
 </idea-plugin>

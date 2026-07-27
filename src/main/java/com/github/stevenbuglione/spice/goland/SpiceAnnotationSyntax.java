@@ -114,6 +114,9 @@ final class SpiceAnnotationSyntax {
     }
 
     static Optional<TextRange> concealmentRange(String comment) {
+        if (PREFIX.equals(comment)) {
+            return Optional.of(new TextRange(0, PREFIX.length() - 1));
+        }
         Optional<Match> annotation = parse(comment);
         if (annotation.isPresent()) {
             return Optional.of(annotation.orElseThrow().prefixRange());

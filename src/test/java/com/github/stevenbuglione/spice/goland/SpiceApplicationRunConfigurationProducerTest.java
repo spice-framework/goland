@@ -4,6 +4,7 @@ import com.goide.execution.GoBuildingRunConfiguration;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.RunManagerEx;
 import com.intellij.execution.actions.ConfigurationContext;
+import com.intellij.execution.actions.ConfigurationFromContext;
 import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.executors.DefaultRunExecutor;
@@ -14,6 +15,7 @@ import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess;
 import com.intellij.psi.PsiComment;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiNamedElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import java.nio.charset.StandardCharsets;
@@ -92,6 +94,47 @@ public final class SpiceApplicationRunConfigurationProducerTest
                         DefaultDebugExecutor.EXECUTOR_ID,
                         configuration
                 )
+        );
+    }
+
+    public void testGutterContextPrefersSpiceOverEveryGoApplicationConfiguration() {
+        VfsRootAccess.allowRootAccess(
+                getTestRootDisposable(),
+                Path.of(System.getProperty("spice.repository.root")).toString()
+        );
+        myFixture.configureByText(
+                "main.go",
+                """
+                        package main
+
+                        // @Application
+                        func main() {}
+                        """
+        );
+        PsiNamedElement main = PsiTreeUtil.findChildrenOfType(
+                myFixture.getFile(),
+                com.goide.psi.GoFunctionDeclaration.class
+        ).stream().findFirst().orElseThrow();
+
+        List<ConfigurationFromContext> configurations =
+                new ConfigurationContext(main).createConfigurationsFromContext();
+
+        assertFalse("missing gutter configurations", configurations.isEmpty());
+        assertTrue(
+                "Spice configuration was not preferred: " + configurations,
+                configurations.getFirst().getConfiguration()
+                        instanceof SpiceApplicationConfiguration
+        );
+        assertTrue(
+                "temporary Go file configuration survived replacement: "
+                        + configurations,
+                configurations.stream().noneMatch(candidate ->
+                        candidate.getConfiguration()
+                                instanceof com.goide.execution.application
+                                .GoApplicationConfiguration go
+                                && !(go instanceof SpiceApplicationConfiguration)
+                                && go.getKind()
+                                == GoBuildingRunConfiguration.Kind.FILE)
         );
     }
 

@@ -87,8 +87,10 @@ public final class SpiceApplicationRunConfigurationProducer
             @NotNull ConfigurationFromContext self,
             @NotNull ConfigurationFromContext other
     ) {
-        if (other.getConfiguration() instanceof GoApplicationConfiguration otherGo) {
-            return otherGo.getKind() == GoBuildingRunConfiguration.Kind.FILE;
+        if (other.getConfiguration() instanceof GoApplicationConfiguration
+                && !(other.getConfiguration()
+                instanceof SpiceApplicationConfiguration)) {
+            return true;
         }
         return super.isPreferredConfiguration(self, other);
     }
@@ -98,8 +100,9 @@ public final class SpiceApplicationRunConfigurationProducer
             @NotNull ConfigurationFromContext self,
             @NotNull ConfigurationFromContext other
     ) {
-        return other.getConfiguration() instanceof GoApplicationConfiguration otherGo
-                && otherGo.getKind() == GoBuildingRunConfiguration.Kind.FILE;
+        return other.getConfiguration() instanceof GoApplicationConfiguration
+                && !(other.getConfiguration()
+                instanceof SpiceApplicationConfiguration);
     }
 
     private static boolean configurePackage(
