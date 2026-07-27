@@ -25,9 +25,6 @@ public final class SpiceLspIntegrationProvider implements LspIntegrationProvider
     }
 
     static final class SpiceLspClientDescriptor extends ProjectWideLspClientDescriptor {
-        private static final String EXECUTABLE_PROPERTY = "spice.executable";
-        private static final String EXECUTABLE_ENVIRONMENT = "SPICE_EXECUTABLE";
-
         SpiceLspClientDescriptor(Project project) {
             super(project, "Spice");
         }
@@ -39,7 +36,10 @@ public final class SpiceLspIntegrationProvider implements LspIntegrationProvider
 
         @Override
         public @NotNull GeneralCommandLine createCommandLine() {
-            GeneralCommandLine commandLine = new GeneralCommandLine(executable(), "lsp")
+            GeneralCommandLine commandLine = new GeneralCommandLine(
+                    SpiceExecutable.resolve(),
+                    "lsp"
+            )
                     .withCharset(StandardCharsets.UTF_8);
             String basePath = getProject().getBasePath();
             if (basePath != null && !basePath.isBlank()) {
@@ -55,12 +55,5 @@ public final class SpiceLspIntegrationProvider implements LspIntegrationProvider
                     && extension.toLowerCase(Locale.ROOT).equals("go");
         }
 
-        private static String executable() {
-            String configured = System.getProperty(EXECUTABLE_PROPERTY);
-            if (configured == null || configured.isBlank()) {
-                configured = System.getenv(EXECUTABLE_ENVIRONMENT);
-            }
-            return configured == null || configured.isBlank() ? "spice" : configured.strip();
-        }
     }
 }

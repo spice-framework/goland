@@ -75,6 +75,10 @@ tasks {
         maxHeapSize = "2g"
         systemProperty("spice.lsp.disabled", "true")
         systemProperty(
+            "spice.repository.root",
+            rootProject.projectDir.resolve("../..").canonicalPath
+        )
+        systemProperty(
             "spice.visual.output",
             layout.buildDirectory
                 .file("reports/visual/spice-annotations-light.png")

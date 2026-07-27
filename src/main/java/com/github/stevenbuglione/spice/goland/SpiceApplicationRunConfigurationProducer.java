@@ -4,7 +4,6 @@ import com.goide.execution.GoBuildingRunConfiguration;
 import com.goide.execution.GoConfigurationFactoryBase;
 import com.goide.execution.GoRunConfigurationProducerBase;
 import com.goide.execution.application.GoApplicationConfiguration;
-import com.goide.execution.application.GoApplicationRunConfigurationType;
 import com.goide.psi.GoFile;
 import com.goide.psi.GoFunctionDeclaration;
 import com.intellij.execution.actions.ConfigurationContext;
@@ -26,11 +25,11 @@ import org.jetbrains.annotations.NotNull;
  * includes the committed generated bootstrap.
  */
 public final class SpiceApplicationRunConfigurationProducer
-        extends GoRunConfigurationProducerBase<GoApplicationConfiguration>
+        extends GoRunConfigurationProducerBase<SpiceApplicationConfiguration>
         implements DumbAware {
     @Override
     protected boolean setupConfigurationFromContext(
-            @NotNull GoApplicationConfiguration configuration,
+            @NotNull SpiceApplicationConfiguration configuration,
             @NotNull ConfigurationContext context,
             @NotNull Ref<PsiElement> sourceElement
     ) {
@@ -49,13 +48,14 @@ public final class SpiceApplicationRunConfigurationProducer
         }
         configuration.setFilePaths(java.util.List.of());
         configuration.setName(suggestedName(application.file()));
+        SpiceGenerateBeforeRunTaskProvider.attach(configuration);
         sourceElement.set(application.marker());
         return true;
     }
 
     @Override
     public boolean isConfigurationFromContext(
-            @NotNull GoApplicationConfiguration configuration,
+            @NotNull SpiceApplicationConfiguration configuration,
             @NotNull ConfigurationContext context
     ) {
         ApplicationContext application = applicationContext(getContextElement(context));
@@ -79,7 +79,7 @@ public final class SpiceApplicationRunConfigurationProducer
 
     @Override
     public @NotNull GoConfigurationFactoryBase getConfigurationFactory() {
-        return GoApplicationRunConfigurationType.getInstance().getFactory();
+        return SpiceApplicationRunConfigurationType.getInstance().factory();
     }
 
     @Override
@@ -103,13 +103,15 @@ public final class SpiceApplicationRunConfigurationProducer
     }
 
     private static boolean configurePackage(
-            GoApplicationConfiguration configuration,
+            SpiceApplicationConfiguration configuration,
             GoFile file
     ) {
         String importPath = file.getImportPath(false);
         if (importPath != null && !importPath.isBlank()) {
             configuration.setKind(GoBuildingRunConfiguration.Kind.PACKAGE);
             configuration.setPackage(importPath);
+            configuration.setSpiceTarget(importPath);
+            configuration.setSpicePattern(importPath);
             return true;
         }
         VirtualFile virtualFile = file.getVirtualFile();
@@ -118,6 +120,9 @@ public final class SpiceApplicationRunConfigurationProducer
         }
         configuration.setKind(GoBuildingRunConfiguration.Kind.DIRECTORY);
         configuration.setDirectoryPath(virtualFile.getParent().getPath());
+        configuration.setWorkingDirectory(virtualFile.getParent().getPath());
+        configuration.setSpiceTarget("");
+        configuration.setSpicePattern(".");
         return true;
     }
 

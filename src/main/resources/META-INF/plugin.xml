@@ -31,7 +31,15 @@
         implementation="com.github.stevenbuglione.spice.goland.SpiceColorSettingsPage"/>
     <platform.lsp.integrationProvider
         implementation="com.github.stevenbuglione.spice.goland.SpiceLspIntegrationProvider"/>
+    <configurationType
+        implementation="com.github.stevenbuglione.spice.goland.SpiceApplicationRunConfigurationType"/>
     <runConfigurationProducer
         implementation="com.github.stevenbuglione.spice.goland.SpiceApplicationRunConfigurationProducer"/>
+    <stepsBeforeRunProvider
+        implementation="com.github.stevenbuglione.spice.goland.SpiceGenerateBeforeRunTaskProvider"/>
+    <notificationGroup
+        id="Spice"
+        displayType="BALLOON"
+        isLogByDefault="true"/>
   </extensions>
 </idea-plugin>
