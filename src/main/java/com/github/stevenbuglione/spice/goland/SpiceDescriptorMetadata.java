@@ -42,9 +42,6 @@ record SpiceDescriptorMetadata(
     private static final Pattern TARGETS = Pattern.compile(
             "(?s)Targets\\s*:\\s*\\[]sdk\\.Target\\s*\\{([^}]*)}"
     );
-    private static final Pattern SOURCE = Pattern.compile(
-            "(?s)Source\\s*:\\s*sdk\\.Symbol\\s*\\{([^}]*)}"
-    );
     private static final Pattern IDENTIFIER = Pattern.compile(
             "[A-Za-z_][A-Za-z0-9_]*"
     );
@@ -58,9 +55,9 @@ record SpiceDescriptorMetadata(
     ) {
         String source = function.getText();
         String handlerExpression = literalOrExpression(source, "Handler");
-        String tool = literalOrExpression(source, "Tool");
+        String tool = toolValue(literalOrExpression(source, "Tool"));
         SpiceAnnotationIndex.DescriptorSymbol handlerSymbol =
-                handlerSymbol(source, descriptor.packagePath(), handlerExpression);
+                handlerSymbol(descriptor.packagePath(), handlerExpression);
         GoFunctionDeclaration handlerFunction = handlerSymbol == null
                 ? null
                 : index.resolveDescriptorFunction(origin, handlerSymbol);
@@ -81,22 +78,9 @@ record SpiceDescriptorMetadata(
     }
 
     private static @Nullable SpiceAnnotationIndex.DescriptorSymbol handlerSymbol(
-            String source,
             String descriptorPackage,
             String handlerExpression
     ) {
-        Matcher sourceBlock = SOURCE.matcher(source);
-        if (sourceBlock.find()) {
-            String body = sourceBlock.group(1);
-            String packagePath = stringField(body, "Package");
-            String name = stringField(body, "Name");
-            if (!packagePath.isBlank() && !name.isBlank()) {
-                return new SpiceAnnotationIndex.DescriptorSymbol(
-                        packagePath,
-                        name
-                );
-            }
-        }
         if (IDENTIFIER.matcher(handlerExpression).matches()) {
             return new SpiceAnnotationIndex.DescriptorSymbol(
                     descriptorPackage,
@@ -104,6 +88,13 @@ record SpiceDescriptorMetadata(
             );
         }
         return null;
+    }
+
+    private static String toolValue(String expression) {
+        if ("coretool.Path".equals(expression)) {
+            return "github.com/StevenBuglione/spice/cmd/spice-annotation-core";
+        }
+        return expression;
     }
 
     private static String targetText(String source) {

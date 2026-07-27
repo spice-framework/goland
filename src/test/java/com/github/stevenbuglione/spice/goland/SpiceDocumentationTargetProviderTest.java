@@ -57,10 +57,10 @@ public final class SpiceDocumentationTargetProviderTest
                 "Application defines",
                 "Declares the application root.",
                 "sdk.TargetFunction",
-                "coretool.Path",
+                "github.com/StevenBuglione/spice/cmd/spice-annotation-core",
                 "ApplicationHandler",
-                "sdk.ProtocolV1Alpha1",
-                "handler.go",
+                "sdk.ProtocolV1Alpha2",
+                "application.go",
                 "example.com/application",
                 "(workspace)",
                 "not declared in application go.mod"
@@ -203,21 +203,11 @@ public final class SpiceDocumentationTargetProviderTest
                                 Targets: []sdk.Target{sdk.TargetFunction},
                                 Implementation: sdk.Implementation{
                                     Tool: coretool.Path,
-                                    Handler: "core/application",
-                                    Protocol: sdk.ProtocolV1Alpha1,
-                                    Source: sdk.Symbol{
-                                        Package: "example.com/application/internal/annotationcore",
-                                        Name: "ApplicationHandler",
-                                    },
+                                    Handler: ApplicationHandler,
+                                    Protocol: sdk.ProtocolV1Alpha2,
                                 },
                             }
                         }
-                        """
-        );
-        myFixture.addFileToProject(
-                "internal/annotationcore/handler.go",
-                """
-                        package annotationcore
 
                         func ApplicationHandler() {}
                         """

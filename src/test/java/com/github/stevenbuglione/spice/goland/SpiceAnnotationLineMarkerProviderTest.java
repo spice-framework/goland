@@ -30,11 +30,13 @@ public final class SpiceAnnotationLineMarkerProviderTest
                             return Definition{
                                 Implementation: sdk.Implementation{
                                     Tool: "example.com/application/cmd/annotations",
-                                    Handler: "core/application",
+                                    Handler: ApplicationHandler,
                                     Protocol: sdk.ProtocolV1Alpha2,
                                 },
                             }
                         }
+
+                        func ApplicationHandler() {}
                         """
         );
         myFixture.configureByText(
@@ -59,7 +61,7 @@ public final class SpiceAnnotationLineMarkerProviderTest
                         + "example.com/application/annotation/core.Application"
                         + " | version (workspace)"
                         + " | tool example.com/application/cmd/annotations"
-                        + " | handler core/application"
+                        + " | handler ApplicationHandler"
                         + " | protocol sdk.ProtocolV1Alpha2"
                         + " | tool authorized",
                 marker.getLineMarkerTooltip()
