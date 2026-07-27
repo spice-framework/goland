@@ -32,7 +32,7 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
                 """
                         package main
 
-                        // @spice.import { Application as App } from "example.com/application/annotation/core"
+                        // @import { Application as App } from "example.com/application/annotation/core"
 
                         // @App
                         func main() {}
@@ -94,8 +94,8 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
                 """
                         package main
 
-                        // @spice.import { Controller, Get as GET } from "example.com/application/annotation/web"
-                        // @spice.import * as web from "example.com/application/annotation/web"
+                        // @import { Controller, Get as GET } from "example.com/application/annotation/web"
+                        // @import * as web from "example.com/application/annotation/web"
                         """
         );
         List<PsiComment> comments = PsiTreeUtil.findChildrenOfType(
@@ -145,8 +145,8 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
 
     public void testResolvesNamedAndNamespaceImportBindings() {
         String source = """
-                // @spice.import { Controller, Get as GET } from "example.com/sdk/web"
-                // @spice.import * as web from "example.com/sdk/web"
+                // @import { Controller, Get as GET } from "example.com/sdk/web"
+                // @import * as web from "example.com/sdk/web"
                 """;
         assertEquals(
                 new SpiceAnnotationIndex.DescriptorSymbol(

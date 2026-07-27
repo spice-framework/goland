@@ -35,11 +35,11 @@ import org.jetbrains.annotations.Nullable;
 public final class SpiceAnnotationIndex {
     private static final String IDENTIFIER = "[A-Za-z_][A-Za-z0-9_]*";
     private static final Pattern NAMED_IMPORT = Pattern.compile(
-            "^\\s*//\\s*@spice\\.import\\s*\\{([^}]*)}\\s*"
+            "^\\s*//\\s*@import\\s*\\{([^}]*)}\\s*"
                     + "from\\s*\"([^\"]+)\"\\s*$"
     );
     private static final Pattern NAMESPACE_IMPORT = Pattern.compile(
-            "^\\s*//\\s*@spice\\.import\\s*\\*\\s+as\\s+("
+            "^\\s*//\\s*@import\\s*\\*\\s+as\\s+("
                     + IDENTIFIER
                     + ")\\s+from\\s*\"([^\"]+)\"\\s*$"
     );

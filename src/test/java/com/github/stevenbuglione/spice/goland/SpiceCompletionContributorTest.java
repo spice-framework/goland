@@ -15,8 +15,8 @@ public final class SpiceCompletionContributorTest
                 """
                         package main
 
-                        // @spice.import { Application as App } from "example.com/application/annotation/core"
-                        // @spice.import * as core from "example.com/application/annotation/core"
+                        // @import { Application as App } from "example.com/application/annotation/core"
+                        // @import * as core from "example.com/application/annotation/core"
 
                         // @<caret>
                         func main() {}
@@ -40,8 +40,8 @@ public final class SpiceCompletionContributorTest
                 """
                         package main
 
-                        // @spice.import { Application as App } from "example.com/application/annotation/core"
-                        // @spice.import * as core from "example.com/application/annotation/core"
+                        // @import { Application as App } from "example.com/application/annotation/core"
+                        // @import * as core from "example.com/application/annotation/core"
 
                         // @App
                         func main() {}
@@ -56,7 +56,7 @@ public final class SpiceCompletionContributorTest
                 """
                         package main
 
-                        // @spice.import { Application } from "example.com/application/annotation/core"
+                        // @import { Application } from "example.com/application/annotation/core"
                         // ordinary @<caret>
                         func main() {}
                         """

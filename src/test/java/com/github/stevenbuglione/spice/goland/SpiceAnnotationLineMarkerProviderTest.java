@@ -42,7 +42,7 @@ public final class SpiceAnnotationLineMarkerProviderTest
                 """
                         package main
 
-                        // @spice.import { Application as App } from "example.com/application/annotation/core"
+                        // @import { Application as App } from "example.com/application/annotation/core"
 
                         // @App
                         func main() {}
@@ -66,7 +66,7 @@ public final class SpiceAnnotationLineMarkerProviderTest
         );
         assertNotNull(marker.getNavigationHandler());
 
-        PsiComment directive = annotationComment("@spice.import");
+        PsiComment directive = annotationComment("@import");
         assertNotNull(directive);
         assertNull(
                 new SpiceAnnotationLineMarkerProvider()

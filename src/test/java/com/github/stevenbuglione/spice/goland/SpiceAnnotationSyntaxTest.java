@@ -70,7 +70,7 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
 
     public void testSegmentsAndConcealsAnnotationImports() {
         String comment =
-                "// @spice.import { Controller, Get as GET } from \"example.com/sdk/web\"";
+                "// @import { Controller, Get as GET } from \"example.com/sdk/web\"";
         assertEquals(
                 new TextRange(0, 3),
                 SpiceAnnotationSyntax.concealmentRange(comment).orElseThrow()
@@ -87,7 +87,6 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
         for (String expected : List.of(
                 "PREFIX:// ",
                 "SIGIL:@",
-                "NAMESPACE:spice",
                 "KEYWORD:import",
                 "IMPORT_SYMBOL:Controller",
                 "IMPORT_SYMBOL:Get",
@@ -98,11 +97,22 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
         )) {
             assertTrue(expected, tokens.contains(expected));
         }
+        assertFalse(tokens.contains("NAMESPACE:spice"));
+    }
+
+    public void testDoesNotPresentRetiredSpiceImportAsValidSyntax() {
+        String legacy =
+                "// @spice.import { Controller } from \"example.com/sdk/web\"";
+        assertTrue(
+                SpiceAnnotationSyntax.parseImportDirective(legacy).isEmpty()
+        );
+        assertTrue(SpiceAnnotationSyntax.highlightTokens(legacy).isEmpty());
+        assertTrue(SpiceAnnotationSyntax.concealmentRange(legacy).isEmpty());
     }
 
     public void testParsesExactImportReferenceRanges() {
         String named =
-                "// @spice.import { Controller, Get as GET } from \"example.com/sdk/web\"";
+                "// @import { Controller, Get as GET } from \"example.com/sdk/web\"";
         SpiceAnnotationSyntax.ImportDirective directive =
                 SpiceAnnotationSyntax.parseImportDirective(named).orElseThrow();
         assertEquals("example.com/sdk/web", directive.packagePath());
@@ -126,7 +136,7 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
         assertEquals("GET", get.localName());
 
         String namespace =
-                "// @spice.import * as web from \"example.com/sdk/web\"";
+                "// @import * as web from \"example.com/sdk/web\"";
         SpiceAnnotationSyntax.ImportDirective namespaceDirective =
                 SpiceAnnotationSyntax.parseImportDirective(namespace)
                         .orElseThrow();
@@ -142,9 +152,9 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
 
     public void testRejectsMalformedImportReferenceRanges() {
         for (String source : List.of(
-                "// @spice.import {} from \"example.com/sdk/web\"",
-                "// @spice.import { Controller as } from \"example.com/sdk/web\"",
-                "// @spice.import * as 9web from \"example.com/sdk/web\""
+                "// @import {} from \"example.com/sdk/web\"",
+                "// @import { Controller as } from \"example.com/sdk/web\"",
+                "// @import * as 9web from \"example.com/sdk/web\""
         )) {
             assertTrue(
                     source,

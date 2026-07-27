@@ -19,7 +19,7 @@ public final class SpiceFoldingBuilderTest extends BasePlatformTestCase {
         String source = """
                 package main
 
-                // @spice.import { Application } from "example.com/sdk/core"
+                // @import { Application } from "example.com/sdk/core"
                 // @Application
                 // ordinary comment
                 func main() {}
@@ -35,7 +35,7 @@ public final class SpiceFoldingBuilderTest extends BasePlatformTestCase {
 
         assertEquals(2, descriptors.length);
         int prefixStart = source.indexOf("// @Application");
-        int importStart = source.indexOf("// @spice.import");
+        int importStart = source.indexOf("// @import");
         assertEquals(
                 new TextRange(importStart, importStart + 3),
                 descriptors[0].getRange()

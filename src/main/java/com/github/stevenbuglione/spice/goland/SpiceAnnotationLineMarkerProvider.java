@@ -23,7 +23,7 @@ public final class SpiceAnnotationLineMarkerProvider implements LineMarkerProvid
             return null;
         }
         SpiceAnnotationSyntax.Match match = parsed.orElseThrow();
-        if ("spice.import".equals(match.name())) {
+        if ("import".equals(match.name())) {
             return null;
         }
         PsiFile file = comment.getContainingFile();

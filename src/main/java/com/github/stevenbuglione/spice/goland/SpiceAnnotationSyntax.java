@@ -10,15 +10,15 @@ import java.util.regex.Pattern;
 final class SpiceAnnotationSyntax {
     private static final String PREFIX = "// @";
     private static final Pattern IMPORT_DIRECTIVE = Pattern.compile(
-            "^// @spice\\.import\\s+(?:\\{[^}]+}\\s+from\\s+\"[^\"]+\""
+            "^// @import\\s+(?:\\{[^}]+}\\s+from\\s+\"[^\"]+\""
                     + "|\\*\\s+as\\s+[A-Za-z_][A-Za-z0-9_]*"
                     + "\\s+from\\s+\"[^\"]+\")\\s*$"
     );
     private static final Pattern NAMED_IMPORT_DIRECTIVE = Pattern.compile(
-            "^// @spice\\.import\\s+\\{([^}]+)}\\s+from\\s+\"([^\"]+)\"\\s*$"
+            "^// @import\\s+\\{([^}]+)}\\s+from\\s+\"([^\"]+)\"\\s*$"
     );
     private static final Pattern NAMESPACE_IMPORT_DIRECTIVE = Pattern.compile(
-            "^// @spice\\.import\\s+\\*\\s+as\\s+"
+            "^// @import\\s+\\*\\s+as\\s+"
                     + "([A-Za-z_][A-Za-z0-9_]*)\\s+from\\s+\"([^\"]+)\"\\s*$"
     );
     private static final Pattern IMPORT_BINDING = Pattern.compile(
@@ -262,20 +262,11 @@ final class SpiceAnnotationSyntax {
         ));
         int sigil = PREFIX.length() - 1;
         tokens.add(new Token(TokenKind.SIGIL, new TextRange(sigil, sigil + 1)));
-        int spiceStart = sigil + 1;
-        int separator = comment.indexOf('.', spiceStart);
-        tokens.add(new Token(
-                TokenKind.NAMESPACE,
-                new TextRange(spiceStart, separator)
-        ));
-        tokens.add(new Token(
-                TokenKind.OPERATOR,
-                new TextRange(separator, separator + 1)
-        ));
-        int importEnd = separator + ".import".length();
+        int importStart = sigil + 1;
+        int importEnd = importStart + "import".length();
         tokens.add(new Token(
                 TokenKind.KEYWORD,
-                new TextRange(separator + 1, importEnd)
+                new TextRange(importStart, importEnd)
         ));
         boolean namespaceImport = comment.substring(importEnd).stripLeading()
                 .startsWith("*");

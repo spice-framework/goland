@@ -18,7 +18,7 @@ public final class SpiceDocumentationTargetProviderTest
                 """
                         package main
 
-                        // @spice.import { Application as App } from "example.com/application/annotation/core"
+                        // @import { Application as App } from "example.com/application/annotation/core"
 
                         // @Ap<caret>p
                         func main() {}
@@ -91,7 +91,7 @@ public final class SpiceDocumentationTargetProviderTest
                 """
                         package main
 
-                        // @spice.import { Appli<caret>cation as App } from "example.com/application/annotation/core"
+                        // @import { Appli<caret>cation as App } from "example.com/application/annotation/core"
                         func main() {}
                         """
         );
@@ -153,7 +153,7 @@ public final class SpiceDocumentationTargetProviderTest
                 """
                         package main
 
-                        // @spice.import { Application } from "example.com/application/annotation/core"
+                        // @import { Application } from "example.com/application/annotation/core"
 
                         // @Application
                         func main() {}
