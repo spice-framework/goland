@@ -529,17 +529,25 @@ class SpiceInstalledPluginTest {
                     var completionAttempt = 0
                     val completionDeadline =
                         System.nanoTime() + 45_000_000_000L
-                    while (text.contains(
-                            "@Implements(payments.Pro)",
-                        ) &&
+                    val expectedImport =
+                        "// @import * as payments from " +
+                            "\"example.com/spice-goland-concealment/" +
+                            "payments\""
+                    while (!(text.contains(
+                            "@Implements(payments.Processor)",
+                        ) && text.contains(expectedImport)) &&
                         System.nanoTime() < completionDeadline
                     ) {
-                        val prefixAt = text.indexOf(
-                            "@Implements(payments.Pro)",
-                        )
+                        if (!text.contains("@Implements(payments.Pro)")) {
+                            driver.invokeAction("\$Undo")
+                            robot.waitForIdle()
+                            Thread.sleep(500)
+                        }
+                        val prefixAt =
+                            text.indexOf("@Implements(payments.Pro)")
                         assertTrue(
                             prefixAt >= 0,
-                            "failed completion must be fully undoable",
+                            "a non-Spice completion must be fully undoable",
                         )
                         moveCaretToOffset(
                             prefixAt + "@Implements(payments.Pro".length,
@@ -556,19 +564,6 @@ class SpiceInstalledPluginTest {
                         }
                         robot.waitForIdle()
                         Thread.sleep(1_000)
-                        if (text.contains("@Implements(payments.Pro)")) {
-                            repeat(3) {
-                                if (text.contains(
-                                        "@Implements(payments.Pro)",
-                                    )
-                                ) {
-                                    return@repeat
-                                }
-                                driver.invokeAction("\$Undo")
-                                robot.waitForIdle()
-                            }
-                            Thread.sleep(2_000)
-                        }
                         completionAttempt++
                     }
                     robot.waitForIdle()
@@ -578,9 +573,7 @@ class SpiceInstalledPluginTest {
                     )
                     awaitEditorContains(
                         this,
-                        "// @import * as payments from "
-                            + "\"example.com/spice-goland-concealment/"
-                            + "payments\"",
+                        expectedImport,
                     )
                     assertFalse(
                         text.contains("var _ payments.Processor"),
