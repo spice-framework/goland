@@ -34,21 +34,6 @@ final class SpiceImplementsAuthoring {
                     .range(range)
                     .withFix(fix)
                     .create();
-            SpiceInterfaceAssertionQuickFix assertion =
-                    new SpiceInterfaceAssertionQuickFix(
-                            comment,
-                            target,
-                            contract.argument().expression(),
-                            pointerReceiver
-                    );
-            if (assertion.isRequired(
-                    comment.getContainingFile().getText()
-            )) {
-                holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                        .range(comment.getTextRange())
-                        .withFix(assertion)
-                        .create();
-            }
         }
     }
 }

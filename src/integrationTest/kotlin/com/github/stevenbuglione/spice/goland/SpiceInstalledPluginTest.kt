@@ -523,8 +523,8 @@ class SpiceInstalledPluginTest {
                     var completionAttempt = 0
                     val completionDeadline =
                         System.nanoTime() + 45_000_000_000L
-                    while (!text.contains(
-                            "var _ payments.Processor = (*Stripe)(nil)",
+                    while (text.contains(
+                            "@Implements(payments.Pro)",
                         ) &&
                         System.nanoTime() < completionDeadline
                     ) {
@@ -550,11 +550,7 @@ class SpiceInstalledPluginTest {
                         }
                         robot.waitForIdle()
                         Thread.sleep(1_000)
-                        if (!text.contains(
-                                "var _ payments.Processor = "
-                                    + "(*Stripe)(nil)",
-                            )
-                        ) {
+                        if (text.contains("@Implements(payments.Pro)")) {
                             repeat(3) {
                                 if (text.contains(
                                         "@Implements(payments.Pro)",
@@ -576,12 +572,13 @@ class SpiceInstalledPluginTest {
                     )
                     awaitEditorContains(
                         this,
-                        "import \"example.com/spice-goland-concealment/"
+                        "// @import * as payments from "
+                            + "\"example.com/spice-goland-concealment/"
                             + "payments\"",
                     )
-                    awaitEditorContains(
-                        this,
-                        "var _ payments.Processor = (*Stripe)(nil)",
+                    assertFalse(
+                        text.contains("var _ payments.Processor"),
+                        "interface assertions belong to Spice generation",
                     )
                     assertSafeDocument(text)
 
@@ -627,27 +624,6 @@ class SpiceInstalledPluginTest {
                         "generated receiver must match pointer construction",
                     )
 
-                    frame.saveAll()
-                    waitForIndicators(1.minutes)
-                    val assertionAt = text.lastIndexOf(
-                        "@Implements(payments.Processor)",
-                    )
-                    moveCaretToOffset(assertionAt)
-                    driver.invokeAction("ShowIntentionActions")
-                    Thread.sleep(1_000)
-                    keyboard {
-                        typeText(
-                            "Add compile-time assertion for "
-                                + "payments.Processor",
-                        )
-                        enter()
-                    }
-                    robot.waitForIdle()
-                    awaitEditorContains(
-                        this,
-                        "var _ payments.Processor = "
-                            + "(*ManualProcessor)(nil)",
-                    )
                     assertSafeDocument(text)
                 }
                 frame.saveAll()
@@ -661,20 +637,12 @@ class SpiceInstalledPluginTest {
         )
         assertTrue(
             authoredText.contains(
-                "import \"example.com/spice-goland-concealment/payments\"",
+                "// @import * as payments from "
+                    + "\"example.com/spice-goland-concealment/payments\"",
             ),
-            "saved source must retain the ordinary Go interface import",
+            "saved source must retain the Spice type namespace import",
         )
-        assertTrue(
-            authoredText.contains(
-                "var _ payments.Processor = (*Stripe)(nil)",
-            ),
-        )
-        assertTrue(
-            authoredText.contains(
-                "var _ payments.Processor = (*ManualProcessor)(nil)",
-            ),
-        )
+        assertFalse(authoredText.contains("var _ payments.Processor"))
         assertSafeDocument(authoredText)
     }
 

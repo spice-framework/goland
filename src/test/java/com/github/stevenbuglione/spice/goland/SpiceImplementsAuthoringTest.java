@@ -15,12 +15,11 @@ public final class SpiceImplementsAuthoringTest
         configureModule();
         myFixture.configureByText(
                 "main.go",
-                """
+                        """
                         package main
 
-                        import "example.com/application/payments"
-
                         // @import { Implements } from "example.com/application/annotation/core"
+                        // @import * as payments from "example.com/application/payments"
 
                         // @Implements(payments.Processor)
                         type Stripe struct{}
@@ -119,7 +118,7 @@ public final class SpiceImplementsAuthoringTest
         );
     }
 
-    public void testAddsInspectableAssertionBeforeTheAnnotationGroup() {
+    public void testLeavesInterfaceVerificationToGeneratedSource() {
         configureModule();
         myFixture.configureByText(
                 "main.go",
@@ -139,30 +138,13 @@ public final class SpiceImplementsAuthoringTest
         );
 
         myFixture.doHighlighting();
-        IntentionAction assertion = myFixture.getAllQuickFixes().stream()
-                .filter(action -> action.getText().equals(
-                        "Add compile-time assertion for payments.Processor"
-                ))
-                .findFirst()
-                .orElseThrow();
-        assertEquals(
-                "com.github.stevenbuglione.spice.goland."
-                        + "SpiceInterfaceAssertionQuickFix",
-                assertion.getClass().getName()
-        );
-        myFixture.launchAction(assertion);
-
         String result = myFixture.getFile().getText();
-        String assertionText =
-                "var _ payments.Processor = (*Stripe)(nil)";
-        assertTrue(result, result.contains(assertionText));
-        assertTrue(
-                result,
-                result.indexOf(assertionText)
-                        < result.indexOf("// @Service")
-        );
-        myFixture.doHighlighting();
         assertFalse(
+                result,
+                result.contains("var _ payments.Processor")
+        );
+        assertFalse(
+                result,
                 myFixture.getAllQuickFixes().stream().anyMatch(
                         action -> action.getText().equals(
                                 "Add compile-time assertion for "
@@ -170,43 +152,6 @@ public final class SpiceImplementsAuthoringTest
                         )
                 )
         );
-    }
-
-    public void testAssertionMatchesAValueReturningFactory() {
-        configureModule();
-        myFixture.configureByText(
-                "main.go",
-                """
-                        package main
-
-                        import "example.com/application/payments"
-
-                        type Stripe struct{}
-
-                        // @import { Implements } from "example.com/application/annotation/core"
-
-                        // @Implements(payments.Processor)
-                        func NewStripe() Stripe { return Stripe{} }
-
-                        func (Stripe) Process() error { return nil }
-                        """
-        );
-
-        myFixture.doHighlighting();
-        IntentionAction assertion = myFixture.getAllQuickFixes().stream()
-                .filter(action -> action.getText().equals(
-                        "Add compile-time assertion for payments.Processor"
-                ))
-                .findFirst()
-                .orElseThrow();
-        myFixture.launchAction(assertion);
-
-        String result = myFixture.getFile().getText();
-        assertTrue(
-                result,
-                result.contains("var _ payments.Processor = Stripe{}")
-        );
-        assertFalse(result, result.contains("(*Stripe)(nil)"));
     }
 
     public void testNativeFixSubstitutesGenericInterfaceArguments() {

@@ -160,12 +160,11 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
         );
         myFixture.configureByText(
                 "main.go",
-                """
+                        """
                         package main
 
-                        import "example.com/application/payments"
-
                         // @import { Implements } from "example.com/application/annotation/core"
+                        // @import * as payments from "example.com/application/payments"
 
                         // @Implements(payments.Processor)
                         type Stripe struct{}

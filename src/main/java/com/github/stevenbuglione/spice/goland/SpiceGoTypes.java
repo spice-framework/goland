@@ -19,6 +19,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.ResolveState;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.util.PsiTreeUtil;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -266,6 +267,21 @@ final class SpiceGoTypes {
             if (alias != null && !alias.isBlank()) {
                 result.put(alias, path);
             }
+        }
+        for (PsiComment comment
+                : PsiTreeUtil.findChildrenOfType(file, PsiComment.class)) {
+            SpiceAnnotationSyntax.parseImportDirective(comment.getText())
+                    .ifPresent(directive -> {
+                        for (SpiceAnnotationSyntax.ImportBinding binding
+                                : directive.bindings()) {
+                            if (binding.namespace()) {
+                                result.put(
+                                        binding.localName(),
+                                        directive.packagePath()
+                                );
+                            }
+                        }
+                    });
         }
         return result;
     }
