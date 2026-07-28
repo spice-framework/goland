@@ -124,7 +124,10 @@ class SpiceInstalledPluginTest {
             ideFrame {
                 val frame: IdeaFrameUI = this
                 val localRobot = Robot()
-                activateIdeWindow(project.fileName.toString())
+                activateIdeWindow(
+                    project.fileName.toString(),
+                    localRobot,
+                )
                 localRobot.keyPress(KeyEvent.VK_ESCAPE)
                 localRobot.keyRelease(KeyEvent.VK_ESCAPE)
                 resize(1280, 800)
@@ -503,7 +506,10 @@ class SpiceInstalledPluginTest {
             ideFrame {
                 val frame = this
                 val localRobot = Robot()
-                activateIdeWindow(project.fileName.toString())
+                activateIdeWindow(
+                    project.fileName.toString(),
+                    localRobot,
+                )
                 resize(1280, 800)
                 ensureFocused()
                 codeEditor {
@@ -646,7 +652,10 @@ class SpiceInstalledPluginTest {
         assertSafeDocument(authoredText)
     }
 
-    private fun activateIdeWindow(projectName: String) {
+    private fun activateIdeWindow(
+        projectName: String,
+        robot: Robot = Robot(),
+    ) {
         if (!System.getProperty("os.name").contains(
                 "windows",
                 ignoreCase = true,
@@ -654,6 +663,12 @@ class SpiceInstalledPluginTest {
         ) {
             return
         }
+        // A system surface such as Start can own the foreground window without
+        // allowing cross-process thread attachment. Close transient surfaces
+        // before resolving and proving the GoLand foreground window.
+        robot.keyPress(KeyEvent.VK_ESCAPE)
+        robot.keyRelease(KeyEvent.VK_ESCAPE)
+        robot.delay(100)
         val visibleWindows = mutableListOf<Pair<HWND, String>>()
         User32.INSTANCE.EnumWindows(
             { handle, _ ->
@@ -693,20 +708,20 @@ class SpiceInstalledPluginTest {
         val targetThread = DWORD(
             User32.INSTANCE.GetWindowThreadProcessId(target, null).toLong(),
         )
+        // Windows can reject attachment to the current foreground owner when
+        // it belongs to a protected process or has already exited. Attachment
+        // is only a focus aid: the foreground-window assertion below is the
+        // acceptance contract. Retain and detach only successful attachments.
         val attachedThreads = listOf(foregroundThread, targetThread)
             .distinct()
             .filter { it != currentThread }
-        attachedThreads.forEach { thread ->
-            check(
+            .filter { thread ->
                 User32.INSTANCE.AttachThreadInput(
                     currentThread,
                     thread,
                     true,
-                ),
-            ) {
-                "cannot attach the installed-IDE test input thread to $thread"
+                )
             }
-        }
         try {
             User32.INSTANCE.ShowWindow(target, SW_RESTORE)
             User32.INSTANCE.BringWindowToTop(target)
