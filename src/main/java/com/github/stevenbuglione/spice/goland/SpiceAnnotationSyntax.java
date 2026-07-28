@@ -211,6 +211,88 @@ final class SpiceAnnotationSyntax {
         ));
     }
 
+    static List<TypeArgument> typeArguments(String comment) {
+        Optional<Match> parsed = parse(comment);
+        if (parsed.isEmpty()) {
+            return List.of();
+        }
+        int open = skipHorizontalSpace(
+                comment,
+                parsed.orElseThrow().referenceRange().getEndOffset()
+        );
+        if (open >= comment.length() || comment.charAt(open) != '(') {
+            return List.of();
+        }
+        int close = matchingParenthesis(comment, open);
+        if (close < 0) {
+            close = comment.length();
+        }
+        List<TypeArgument> result = new ArrayList<>();
+        int start = open + 1;
+        int squareDepth = 0;
+        for (int offset = start; offset <= close; offset++) {
+            char value = offset == close ? ',' : comment.charAt(offset);
+            if (value == '[') {
+                squareDepth++;
+            } else if (value == ']' && squareDepth > 0) {
+                squareDepth--;
+            }
+            if (value != ',' || squareDepth != 0) {
+                continue;
+            }
+            addTypeArgument(result, comment, start, offset);
+            start = offset + 1;
+        }
+        return List.copyOf(result);
+    }
+
+    static Optional<TypeCompletion> typeCompletion(
+            String comment,
+            int relativeOffset
+    ) {
+        Optional<Match> parsed = parse(comment);
+        if (parsed.isEmpty()
+                || relativeOffset < 0
+                || relativeOffset > comment.length()) {
+            return Optional.empty();
+        }
+        int open = skipHorizontalSpace(
+                comment,
+                parsed.orElseThrow().referenceRange().getEndOffset()
+        );
+        if (open >= relativeOffset
+                || open >= comment.length()
+                || comment.charAt(open) != '(') {
+            return Optional.empty();
+        }
+        int start = open + 1;
+        int squareDepth = 0;
+        for (int offset = start; offset < relativeOffset; offset++) {
+            char value = comment.charAt(offset);
+            if (value == '[') {
+                squareDepth++;
+            } else if (value == ']' && squareDepth > 0) {
+                squareDepth--;
+            } else if (value == ')' && squareDepth == 0) {
+                return Optional.empty();
+            } else if (value == ',' && squareDepth == 0) {
+                start = offset + 1;
+            }
+        }
+        while (start < relativeOffset
+                && Character.isWhitespace(comment.charAt(start))) {
+            start++;
+        }
+        String prefix = comment.substring(start, relativeOffset);
+        if (prefix.indexOf('[') >= 0 || !isQualifiedIdentifierPrefix(prefix)) {
+            return Optional.empty();
+        }
+        return Optional.of(new TypeCompletion(
+                prefix,
+                new TextRange(start, relativeOffset)
+        ));
+    }
+
     static Optional<TextRange> concealmentRange(String comment) {
         if (PREFIX.equals(comment)) {
             return Optional.of(new TextRange(0, PREFIX.length() - 1));
@@ -370,6 +452,105 @@ final class SpiceAnnotationSyntax {
         return comment.length();
     }
 
+    private static void addTypeArgument(
+            List<TypeArgument> result,
+            String comment,
+            int rawStart,
+            int rawEnd
+    ) {
+        int start = rawStart;
+        int end = rawEnd;
+        while (start < end && Character.isWhitespace(comment.charAt(start))) {
+            start++;
+        }
+        while (end > start && Character.isWhitespace(comment.charAt(end - 1))) {
+            end--;
+        }
+        if (start == end) {
+            return;
+        }
+        int referenceEnd = start;
+        if (!isIdentifierStart(comment.charAt(referenceEnd))) {
+            return;
+        }
+        referenceEnd++;
+        while (referenceEnd < end
+                && isIdentifierCharacter(comment.charAt(referenceEnd))) {
+            referenceEnd++;
+        }
+        if (referenceEnd < end && comment.charAt(referenceEnd) == '.') {
+            referenceEnd++;
+            if (referenceEnd >= end
+                    || !isIdentifierStart(comment.charAt(referenceEnd))) {
+                return;
+            }
+            referenceEnd++;
+            while (referenceEnd < end
+                    && isIdentifierCharacter(comment.charAt(referenceEnd))) {
+                referenceEnd++;
+            }
+        }
+        if (referenceEnd < end && comment.charAt(referenceEnd) != '[') {
+            return;
+        }
+        result.add(new TypeArgument(
+                comment.substring(start, end),
+                new TextRange(start, end),
+                new TextRange(start, referenceEnd)
+        ));
+    }
+
+    private static int matchingParenthesis(String value, int open) {
+        int squareDepth = 0;
+        for (int offset = open + 1; offset < value.length(); offset++) {
+            char current = value.charAt(offset);
+            if (current == '[') {
+                squareDepth++;
+            } else if (current == ']' && squareDepth > 0) {
+                squareDepth--;
+            } else if (current == ')' && squareDepth == 0) {
+                return offset;
+            }
+        }
+        return -1;
+    }
+
+    private static int skipHorizontalSpace(String value, int start) {
+        int offset = start;
+        while (offset < value.length()) {
+            char current = value.charAt(offset);
+            if (current != ' ' && current != '\t' && current != '\r') {
+                break;
+            }
+            offset++;
+        }
+        return offset;
+    }
+
+    private static boolean isQualifiedIdentifierPrefix(String value) {
+        if (value.isEmpty()) {
+            return true;
+        }
+        boolean segmentStart = true;
+        for (int index = 0; index < value.length(); index++) {
+            char current = value.charAt(index);
+            if (current == '.') {
+                if (segmentStart) {
+                    return false;
+                }
+                segmentStart = true;
+                continue;
+            }
+            if (segmentStart
+                    ? !isIdentifierStart(current)
+                    : !isIdentifierCharacter(current)) {
+                return false;
+            }
+            segmentStart = false;
+        }
+        return true;
+    }
+
     private static boolean isNumberStart(String comment, int offset) {
         char value = comment.charAt(offset);
         return Character.isDigit(value)
@@ -433,4 +614,12 @@ final class SpiceAnnotationSyntax {
             TextRange localRange,
             boolean namespace
     ) {}
+
+    record TypeArgument(
+            String expression,
+            TextRange expressionRange,
+            TextRange referenceRange
+    ) {}
+
+    record TypeCompletion(String prefix, TextRange range) {}
 }

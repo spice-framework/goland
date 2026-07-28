@@ -535,7 +535,7 @@ public final class SpiceAnnotationIndex {
         return packagePath.equals(inferredProjectImportPath(file));
     }
 
-    private @Nullable String importPath(GoFile file) {
+    @Nullable String importPath(GoFile file) {
         String path = file.getImportPath(false);
         if (path == null || path.isBlank()) {
             path = file.getImportPath(true);

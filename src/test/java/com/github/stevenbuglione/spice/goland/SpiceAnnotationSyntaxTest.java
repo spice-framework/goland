@@ -193,6 +193,45 @@ public final class SpiceAnnotationSyntaxTest extends TestCase {
         );
     }
 
+    public void testParsesTypedArgumentsAndPartialCompletionRanges() {
+        String source =
+                "// @Implements(payments.Repository[Order, *Item], Checker)";
+        List<SpiceAnnotationSyntax.TypeArgument> arguments =
+                SpiceAnnotationSyntax.typeArguments(source);
+        assertEquals(2, arguments.size());
+        assertEquals(
+                "payments.Repository[Order, *Item]",
+                arguments.getFirst().expression()
+        );
+        assertEquals(
+                "payments.Repository",
+                text(source, arguments.getFirst().referenceRange())
+        );
+        assertEquals("Checker", arguments.get(1).expression());
+        assertEquals(
+                "Checker",
+                text(source, arguments.get(1).referenceRange())
+        );
+
+        String partial = "// @Implements(payments.Pro";
+        SpiceAnnotationSyntax.TypeCompletion completion =
+                SpiceAnnotationSyntax.typeCompletion(
+                        partial,
+                        partial.length()
+                ).orElseThrow();
+        assertEquals("payments.Pro", completion.prefix());
+        assertEquals(
+                "payments.Pro",
+                text(partial, completion.range())
+        );
+        assertTrue(
+                SpiceAnnotationSyntax.typeCompletion(
+                        "// @Implements(payments.Repository[",
+                        "// @Implements(payments.Repository[".length()
+                ).isEmpty()
+        );
+    }
+
     private static String text(String source, TextRange range) {
         return source.substring(range.getStartOffset(), range.getEndOffset());
     }

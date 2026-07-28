@@ -37,14 +37,35 @@ public final class SpiceAnnotationReferenceContributor extends PsiReferenceContr
             return importReferences(comment, directive.orElseThrow());
         }
         return SpiceAnnotationSyntax.parse(comment.getText())
-                .<PsiReference[]>map(match -> new PsiReference[]{
-                    new SpiceAnnotationReference(
-                            comment,
-                            match.referenceRange(),
-                            match.name()
-                    )
-                })
+                .<PsiReference[]>map(match -> annotationReferences(
+                        comment,
+                        match
+                ))
                 .orElse(PsiReference.EMPTY_ARRAY);
+    }
+
+    private static PsiReference[] annotationReferences(
+            PsiComment comment,
+            SpiceAnnotationSyntax.Match match
+    ) {
+        List<PsiReference> references = new ArrayList<>();
+        references.add(new SpiceAnnotationReference(
+                comment,
+                match.referenceRange(),
+                match.name()
+        ));
+        if (SpiceGoTypes.isImplements(comment)) {
+            for (SpiceAnnotationSyntax.TypeArgument argument
+                    : SpiceAnnotationSyntax.typeArguments(
+                            comment.getText()
+                    )) {
+                references.add(new SpiceGoTypeReference(
+                        comment,
+                        argument.referenceRange()
+                ));
+            }
+        }
+        return references.toArray(PsiReference[]::new);
     }
 
     private static PsiReference[] importReferences(

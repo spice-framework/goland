@@ -56,6 +56,16 @@ public final class SpiceCompletionContributor extends CompletionContributor {
         }
         String text = comment.getText();
         int relative = offset - comment.getTextRange().getStartOffset();
+        if (SpiceGoTypes.isImplements(comment)
+                && SpiceAnnotationSyntax.typeCompletion(
+                        comment.getText(),
+                        relative
+                ).isPresent()) {
+            // The shared Spice compiler/LSP owns the complete Go interface
+            // catalog and import edits. This native contributor deliberately
+            // supplies no semantic candidates from GoLand's partial index.
+            return;
+        }
         if (!text.startsWith("// @")
                 || relative < ANNOTATION_PREFIX_LENGTH
                 || relative > text.length()) {

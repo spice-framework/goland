@@ -24,5 +24,6 @@ public final class SpiceAnnotationAnnotator implements Annotator {
                     .textAttributes(SpiceHighlighting.forKind(token.kind()))
                     .create();
         }
+        SpiceImplementsAuthoring.addNativeMethodFixes(comment, holder);
     }
 }

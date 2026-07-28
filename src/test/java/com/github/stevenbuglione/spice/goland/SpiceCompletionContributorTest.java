@@ -72,6 +72,36 @@ public final class SpiceCompletionContributorTest
         }
     }
 
+    public void testDoesNotInferInterfaceCandidatesFromTheIdeIndex() {
+        configureImplementsModule();
+        myFixture.configureByText(
+                "main.go",
+                """
+                        package main
+
+                        import "example.com/application/payments"
+
+                        // @import { Implements } from "example.com/application/annotation/core"
+
+                        // @Implements(payments.Pro<caret>)
+                        type Stripe struct{}
+                        """
+        );
+
+        LookupElement[] variants = myFixture.completeBasic();
+        if (variants == null) {
+            return;
+        }
+        List<String> names = Arrays.stream(variants)
+                .flatMap(value -> value.getAllLookupStrings().stream())
+                .toList();
+        assertFalse(
+                "Spice interface candidates must come from the shared "
+                        + "compiler/LSP, not GoLand's partial index",
+                names.contains("payments.Processor")
+        );
+    }
+
     private void configureDescriptorModule() {
         myFixture.configureByText(
                 "go.mod",
@@ -88,6 +118,33 @@ public final class SpiceCompletionContributorTest
                         func Application() Definition {
                             return Definition{}
                         }
+                        """
+        );
+    }
+
+    private void configureImplementsModule() {
+        myFixture.configureByText(
+                "go.mod",
+                "module example.com/application\n\ngo 1.26.0\n"
+        );
+        myFixture.addFileToProject(
+                "payments/payments.go",
+                """
+                        package payments
+
+                        type Processor interface {
+                            Process() error
+                        }
+
+                        type Provider interface {
+                            Provide() error
+                        }
+
+                        type Ordered interface {
+                            ~int
+                        }
+
+                        type Record struct{}
                         """
         );
     }

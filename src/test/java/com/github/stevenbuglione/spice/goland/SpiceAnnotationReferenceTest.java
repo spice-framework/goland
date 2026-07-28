@@ -143,6 +143,54 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
         assertEquals("web", namespace[1].resolve().getText());
     }
 
+    public void testNavigatesImplementsArgumentsAsNativeGoTypes() {
+        myFixture.configureByText(
+                "go.mod",
+                "module example.com/application\n\ngo 1.26.0\n"
+        );
+        myFixture.addFileToProject(
+                "payments/payments.go",
+                """
+                        package payments
+
+                        type Processor interface {
+                            Process() error
+                        }
+                        """
+        );
+        myFixture.configureByText(
+                "main.go",
+                """
+                        package main
+
+                        import "example.com/application/payments"
+
+                        // @import { Implements } from "example.com/application/annotation/core"
+
+                        // @Implements(payments.Processor)
+                        type Stripe struct{}
+                        """
+        );
+        PsiComment comment = annotationComment("@Implements");
+        assertNotNull(comment);
+
+        PsiReference[] references =
+                SpiceAnnotationReferenceContributor.referencesFor(comment);
+        assertEquals(2, references.length);
+        assertEquals("@Implements", references[0].getCanonicalText());
+        assertEquals(
+                "payments.Processor",
+                references[1].getCanonicalText()
+        );
+        PsiElement target = references[1].resolve();
+        assertNotNull(target);
+        assertEquals("Processor", target.getText());
+        assertTrue(
+                target.getContainingFile().getVirtualFile().getPath()
+                        .endsWith("payments/payments.go")
+        );
+    }
+
     public void testResolvesNamedAndNamespaceImportBindings() {
         String source = """
                 // @import { Controller, Get as GET } from "example.com/sdk/web"

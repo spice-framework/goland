@@ -377,12 +377,18 @@ class SpiceInstalledPluginTest {
                     driver.invokeAction("HideActiveWindow")
                     localRobot.waitForIdle()
 
-                    driver.changeTheme(IdeTheme.LIGHT)
-                    robot.waitForIdle()
-                    val light = captureEditor(localRobot, this)
-                    driver.changeTheme(IdeTheme.DARK)
-                    robot.waitForIdle()
-                    val dark = captureEditor(localRobot, this)
+                    val light = captureMatchingTheme(
+                        localRobot,
+                        this,
+                        IdeTheme.LIGHT,
+                        "spice-installed-light.png",
+                    )
+                    val dark = captureMatchingTheme(
+                        localRobot,
+                        this,
+                        IdeTheme.DARK,
+                        "spice-installed-dark.png",
+                    )
 
                     assertNotBlank(light)
                     assertNotBlank(dark)
@@ -422,6 +428,253 @@ class SpiceInstalledPluginTest {
             Files.readString(sourceFile),
             "installed-plugin presentation must not mutate physical Go source",
         )
+    }
+
+    @Test
+    fun packagedPluginAuthorsExplicitInterfaceBindings() {
+        val pluginArchive = Path.of(
+            requireNotNull(System.getProperty("path.to.build.plugin")),
+        )
+        val repository = Path.of(
+            requireNotNull(System.getProperty("spice.repository.root")),
+        )
+        val installedGoLand = System.getProperty("spice.goland.path")
+            ?.let(Path::of)
+        val spiceExecutable = Path.of(
+            requireNotNull(
+                System.getProperty("spice.integration.executable"),
+            ),
+        )
+        val fixture = repository.resolve(
+            "editors/goland/src/integrationTest/resources/projects/concealment",
+        )
+        val projectOutput = Path.of(
+            requireNotNull(
+                System.getProperty("spice.installed.project.output"),
+            ),
+        )
+        Files.createDirectories(projectOutput)
+        val project = Files.createTempDirectory(
+            projectOutput,
+            "authoring-",
+        )
+        Files.copy(
+            fixture.resolve("authoring.go"),
+            project.resolve("authoring.go"),
+        )
+        Files.createDirectories(project.resolve("payments"))
+        Files.copy(
+            fixture.resolve("payments/payments.go"),
+            project.resolve("payments/payments.go"),
+        )
+        Files.copy(repository.resolve("go.sum"), project.resolve("go.sum"))
+        Files.writeString(
+            project.resolve("go.mod"),
+            Files.readString(fixture.resolve("go.mod")).replace(
+                "../../../../../../..",
+                repository.toString().replace('\\', '/'),
+            ),
+        )
+        val pinnedGoLand = if (installedGoLand != null) {
+            IdeInfo.GoLand.copy(
+                getInstaller = { ExistingIdeInstaller(installedGoLand) },
+            )
+        } else {
+            IdeInfo.GoLand.copy(buildNumber = "262.8665.336")
+        }
+
+        Starter.newContext(
+            "spice-installed-authoring",
+            TestCase(pinnedGoLand, LocalProjectInfo(project)),
+        ).apply {
+            PluginConfigurator(this).installPluginFromPath(pluginArchive)
+            applyVMOptionsPatch {
+                withEnv(
+                    "PATH",
+                    spiceExecutable.parent.toString()
+                        + File.pathSeparator
+                        + System.getenv("PATH").orEmpty(),
+                )
+            }
+        }.runIdeWithDriver().useDriverAndCloseIde {
+            waitForIndicators(3.minutes)
+            openFile("payments/payments.go")
+            waitForIndicators(1.minutes)
+            ideFrame {
+                val frame = this
+                val localRobot = Robot()
+                activateIdeWindow(project.fileName.toString())
+                resize(1280, 800)
+                ensureFocused()
+                codeEditor {
+                    awaitEditorContains(this, "type Processor interface")
+                }
+                driver.openFile("authoring.go")
+                waitForIndicators(1.minutes)
+                codeEditor {
+                    val implementsAt = text.indexOf(
+                        "@Implements(payments.Pro)",
+                    )
+                    assertTrue(implementsAt >= 0)
+                    moveCaretToOffset(
+                        implementsAt + "@Implements(payments.Pro".length,
+                    )
+                    activateIdeWindow(project.fileName.toString())
+                    var completionAttempt = 0
+                    val completionDeadline =
+                        System.nanoTime() + 45_000_000_000L
+                    while (!text.contains(
+                            "var _ payments.Processor = (*Stripe)(nil)",
+                        ) &&
+                        System.nanoTime() < completionDeadline
+                    ) {
+                        val prefixAt = text.indexOf(
+                            "@Implements(payments.Pro)",
+                        )
+                        assertTrue(
+                            prefixAt >= 0,
+                            "failed completion must be fully undoable",
+                        )
+                        moveCaretToOffset(
+                            prefixAt + "@Implements(payments.Pro".length,
+                        )
+                        driver.invokeAction("CodeCompletion")
+                        Thread.sleep(1_000)
+                        if (completionAttempt > 0) {
+                            localRobot.keyPress(KeyEvent.VK_DOWN)
+                            localRobot.keyRelease(KeyEvent.VK_DOWN)
+                            localRobot.waitForIdle()
+                        }
+                        keyboard {
+                            enter()
+                        }
+                        robot.waitForIdle()
+                        Thread.sleep(1_000)
+                        if (!text.contains(
+                                "var _ payments.Processor = "
+                                    + "(*Stripe)(nil)",
+                            )
+                        ) {
+                            repeat(3) {
+                                if (text.contains(
+                                        "@Implements(payments.Pro)",
+                                    )
+                                ) {
+                                    return@repeat
+                                }
+                                driver.invokeAction("\$Undo")
+                                robot.waitForIdle()
+                            }
+                            Thread.sleep(2_000)
+                        }
+                        completionAttempt++
+                    }
+                    robot.waitForIdle()
+                    awaitEditorContains(
+                        this,
+                        "@Implements(payments.Processor)",
+                    )
+                    assertTrue(
+                        text.contains(
+                            "import \"example.com/spice-goland-concealment/"
+                                + "payments\"",
+                        ),
+                        "installed completion must add the ordinary Go import",
+                    )
+                    assertTrue(
+                        text.contains(
+                            "var _ payments.Processor = (*Stripe)(nil)",
+                        ),
+                        "compiler-owned completion must atomically add the "
+                            + "required ordinary Go assertion",
+                    )
+                    assertSafeDocument(text)
+
+                    val completedAt = text.indexOf(
+                        "@Implements(payments.Processor)",
+                    )
+                    moveCaretToOffset(
+                        completedAt + "@Implements(".length + 1,
+                    )
+                    driver.invokeAction("ShowIntentionActions")
+                    Thread.sleep(1_000)
+                    keyboard {
+                        typeText(
+                            "Implement missing methods for "
+                                + "payments.Processor",
+                        )
+                        enter()
+                    }
+                    Thread.sleep(1_000)
+                    robot.waitForIdle()
+                    localRobot.keyPress(KeyEvent.VK_TAB)
+                    localRobot.keyRelease(KeyEvent.VK_TAB)
+                    localRobot.waitForIdle()
+                    keyboard {
+                        enter()
+                    }
+                    localRobot.waitForIdle()
+                    awaitEditorMatches(
+                        this,
+                        Regex(
+                            """func \([^\n]+ \*Stripe\) Process\(\) error""",
+                        ),
+                    )
+                    assertTrue(
+                        text.contains("panic(\"implement me\")"),
+                        "native GoLand generation must create inspectable "
+                            + "method bodies",
+                    )
+                    assertTrue(
+                        Regex(
+                            """func \([^\n]+ \*Stripe\) Process\(\) error""",
+                        ).containsMatchIn(text),
+                        "generated receiver must match pointer construction",
+                    )
+
+                    frame.saveAll()
+                    waitForIndicators(1.minutes)
+                    val assertionAt = text.lastIndexOf(
+                        "@Implements(payments.Processor)",
+                    )
+                    moveCaretToOffset(assertionAt)
+                    driver.invokeAction("ShowIntentionActions")
+                    Thread.sleep(1_000)
+                    keyboard {
+                        typeText(
+                            "Add compile-time assertion for "
+                                + "payments.Processor",
+                        )
+                        enter()
+                    }
+                    robot.waitForIdle()
+                    awaitEditorContains(
+                        this,
+                        "var _ payments.Processor = "
+                            + "(*ManualProcessor)(nil)",
+                    )
+                    assertSafeDocument(text)
+                }
+                frame.saveAll()
+            }
+        }
+
+        val authoredText = Files.readString(project.resolve("authoring.go"))
+        assertTrue(authoredText.contains("// @Service"))
+        assertTrue(
+            authoredText.contains("// @Implements(payments.Processor)"),
+        )
+        assertTrue(
+            authoredText.contains(
+                "var _ payments.Processor = (*Stripe)(nil)",
+            ),
+        )
+        assertTrue(
+            authoredText.contains(
+                "var _ payments.Processor = (*ManualProcessor)(nil)",
+            ),
+        )
+        assertSafeDocument(authoredText)
     }
 
     private fun activateIdeWindow(projectName: String) {
@@ -601,6 +854,23 @@ class SpiceInstalledPluginTest {
         )
     }
 
+    private fun awaitEditorMatches(
+        editor: JEditorUiComponent,
+        expected: Regex,
+    ) {
+        val deadline = System.nanoTime() + 10_000_000_000L
+        while (System.nanoTime() < deadline) {
+            if (expected.containsMatchIn(editor.text)) {
+                return
+            }
+            Thread.sleep(100)
+        }
+        assertTrue(
+            expected.containsMatchIn(editor.text),
+            "active editor did not match $expected within ten seconds",
+        )
+    }
+
     private fun captureEditor(
         robot: Robot,
         editor: JEditorUiComponent,
@@ -665,6 +935,30 @@ class SpiceInstalledPluginTest {
             changedRatio <= 0.08,
             "$name changed-pixel ratio $changedRatio exceeds 0.08",
         )
+    }
+
+    private fun captureMatchingTheme(
+        robot: Robot,
+        editor: JEditorUiComponent,
+        theme: IdeTheme,
+        goldenName: String,
+    ): BufferedImage {
+        var failure: AssertionError? = null
+        repeat(10) {
+            editor.driver.changeTheme(theme)
+            robot.waitForIdle()
+            Thread.sleep(750)
+            val captured = captureEditor(robot, editor)
+            try {
+                assertMatchesGolden(goldenName, captured)
+                return captured
+            } catch (error: AssertionError) {
+                failure = error
+            }
+        }
+        throw requireNotNull(failure) {
+            "theme capture did not produce $goldenName"
+        }
     }
 
     private fun assertThemeDifference(
