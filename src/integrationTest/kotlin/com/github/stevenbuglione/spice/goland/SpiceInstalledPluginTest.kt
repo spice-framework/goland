@@ -574,19 +574,14 @@ class SpiceInstalledPluginTest {
                         this,
                         "@Implements(payments.Processor)",
                     )
-                    assertTrue(
-                        text.contains(
-                            "import \"example.com/spice-goland-concealment/"
-                                + "payments\"",
-                        ),
-                        "installed completion must add the ordinary Go import",
+                    awaitEditorContains(
+                        this,
+                        "import \"example.com/spice-goland-concealment/"
+                            + "payments\"",
                     )
-                    assertTrue(
-                        text.contains(
-                            "var _ payments.Processor = (*Stripe)(nil)",
-                        ),
-                        "compiler-owned completion must atomically add the "
-                            + "required ordinary Go assertion",
+                    awaitEditorContains(
+                        this,
+                        "var _ payments.Processor = (*Stripe)(nil)",
                     )
                     assertSafeDocument(text)
 
@@ -663,6 +658,12 @@ class SpiceInstalledPluginTest {
         assertTrue(authoredText.contains("// @Service"))
         assertTrue(
             authoredText.contains("// @Implements(payments.Processor)"),
+        )
+        assertTrue(
+            authoredText.contains(
+                "import \"example.com/spice-goland-concealment/payments\"",
+            ),
+            "saved source must retain the ordinary Go interface import",
         )
         assertTrue(
             authoredText.contains(
