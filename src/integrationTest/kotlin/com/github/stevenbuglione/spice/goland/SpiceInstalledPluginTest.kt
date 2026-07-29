@@ -119,13 +119,16 @@ class SpiceInstalledPluginTest {
             }
         }.runIdeWithDriver().useDriverAndCloseIde {
             waitForIndicators(3.minutes)
-            openFile("zz_spice_bridge_gen.go")
+            openFile(
+                "internal/spicegen/petclinic/sources/_root/"
+                    + "main_spice_gen.go",
+            )
             waitForIndicators(1.minutes)
             ideFrame {
                 codeEditor {
                     assertTrue(
-                        text.contains("func spiceMain(arguments []string) int"),
-                        "Petclinic's inspectable generated bridge is missing",
+                        text.contains("const ApplicationTarget"),
+                        "Petclinic's source-mapped generated entrypoint is missing",
                     )
                 }
             }

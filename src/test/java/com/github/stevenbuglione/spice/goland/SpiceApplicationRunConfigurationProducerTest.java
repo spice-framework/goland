@@ -33,12 +33,16 @@ public final class SpiceApplicationRunConfigurationProducerTest
         String source = """
                 package main
 
-                import "os"
+                import (
+                    "os"
+
+                    spiceapp "example.com/app/internal/spicegen/app"
+                )
 
                 // @Application
                 // @management.Enable(expose=["health"])
                 func main() {
-                    os.Exit(spiceMain(os.Args[1:]))
+                    os.Exit(spiceapp.Main(os.Args[1:]))
                 }
                 """;
         myFixture.configureByText("main.go", source);

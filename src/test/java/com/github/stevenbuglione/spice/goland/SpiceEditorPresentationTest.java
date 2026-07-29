@@ -73,7 +73,11 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
         String source = """
                 package main
 
-                import "os"
+                import (
+                    "os"
+
+                    spiceapp "example.com/app/internal/spicegen/app"
+                )
 
                 // @import { Application } from "github.com/StevenBuglione/spice/annotation/core"
                 // @import * as management from "github.com/StevenBuglione/spice/annotation/management"
@@ -86,7 +90,7 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                 // @event.Listener(order=10)
                 // @Implements(payments.Processor, health.Checker)
                 func main() {
-                    os.Exit(spiceMain(os.Args[1:]))
+                    os.Exit(spiceapp.Main(os.Args[1:]))
                 }
                 """;
         myFixture.configureByText("main.go", source);
