@@ -138,7 +138,7 @@ public final class SpiceGenerateBeforeRunTaskProvider
             arguments.add("--target");
             arguments.add(configuration.getSpiceTarget());
         }
-        arguments.add(SpiceApplicationRunningState.pattern(configuration));
+        arguments.addAll(SpiceApplicationRunningState.patterns(configuration));
         GeneralCommandLine commandLine = new GeneralCommandLine(arguments)
                 .withCharset(StandardCharsets.UTF_8)
                 .withEnvironment(configuration.getCustomEnvironment())

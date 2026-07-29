@@ -181,7 +181,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
         );
         SpiceApplicationConfiguration original = configuration();
         original.setSpiceTarget("example.com/shop/cmd/server");
-        original.setSpicePattern("./cmd/server/...");
+        original.setSpicePattern(". ./domain ./presentation");
         Element stored = new Element("configuration");
         original.writeExternal(stored);
 
@@ -192,10 +192,41 @@ public final class SpiceApplicationRunConfigurationProducerTest
                 "example.com/shop/cmd/server",
                 restored.getSpiceTarget()
         );
-        assertEquals("./cmd/server/...", restored.getSpicePattern());
+        assertEquals(". ./domain ./presentation", restored.getSpicePattern());
+        assertEquals(
+                List.of(".", "./domain", "./presentation"),
+                SpiceApplicationRunningState.patterns(restored)
+        );
+        assertEquals(
+                List.of(
+                        "spice",
+                        "run",
+                        "--target",
+                        "example.com/shop/cmd/server",
+                        ".",
+                        "./domain",
+                        "./presentation"
+                ),
+                SpiceApplicationRunningState.commandLine(restored)
+                        .getCommandLineList(null)
+        );
+        assertEquals(
+                List.of(
+                        "spice",
+                        "generate",
+                        "--target",
+                        "example.com/shop/cmd/server",
+                        ".",
+                        "./domain",
+                        "./presentation"
+                ),
+                SpiceGenerateBeforeRunTaskProvider
+                        .generationCommandLine(restored)
+                        .getCommandLineList(null)
+        );
     }
 
-    public void testRunAndDebugCommandsExecuteFoldedCommercePackage()
+    public void testRunAndDebugCommandsExecuteFoldedPetclinicPackage()
             throws Exception {
         Path repository = repositoryRoot();
         Path temporary = Files.createTempDirectory("spice-goland-run-");
@@ -218,7 +249,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
             String previous = System.getProperty("spice.executable");
             System.setProperty("spice.executable", executable.toString());
             try {
-                executeCommerceRunAndDebug(repository, temporary);
+                executePetclinicRunAndDebug(repository, temporary);
             } finally {
                 if (previous == null) {
                     System.clearProperty("spice.executable");
@@ -231,32 +262,35 @@ public final class SpiceApplicationRunConfigurationProducerTest
         }
 
         String physicalSource = Files.readString(
-                repository.resolve("examples/commerce/main.go"),
+                repository.resolve("examples/petclinic/main.go"),
                 StandardCharsets.UTF_8
         );
         assertTrue(physicalSource.contains("// @Application"));
         assertFalse(physicalSource.contains("\n@Application"));
     }
 
-    private void executeCommerceRunAndDebug(
+    private void executePetclinicRunAndDebug(
             Path repository,
             Path temporary
     ) throws ExecutionException {
+        Path petclinic = repository.resolve("examples/petclinic");
         SpiceApplicationConfiguration configuration = configuration();
         configuration.setKind(GoBuildingRunConfiguration.Kind.PACKAGE);
         configuration.setPackage(
-                "github.com/StevenBuglione/spice/examples/commerce"
+                "github.com/StevenBuglione/spice/examples/petclinic"
         );
-        configuration.setWorkingDirectory(repository.toString());
-        configuration.setSpiceTarget("Commerce");
-        configuration.setSpicePattern("./examples/commerce/...");
+        configuration.setWorkingDirectory(petclinic.toString());
+        configuration.setSpiceTarget("Petclinic");
+        configuration.setSpicePattern(
+                ". ./memory ./model ./owner ./presentation ./system ./vet"
+        );
         configuration.setParams("-check");
 
         ProcessOutput run = assertSuccessful(
                 SpiceApplicationRunningState.commandLine(configuration),
-                "run folded commerce application"
+                "run folded Petclinic application"
         );
-        assertTrue(combinedOutput(run).contains("Spice commerce ready."));
+        assertTrue(combinedOutput(run).contains("Spice petclinic ready."));
 
         assertSuccessful(
                 SpiceGenerateBeforeRunTaskProvider.generationCommandLine(
@@ -265,7 +299,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
                 "generate before debug"
         );
         Path debugBinary = temporary.resolve(
-                isWindows() ? "commerce-debug.exe" : "commerce-debug"
+                isWindows() ? "petclinic-debug.exe" : "petclinic-debug"
         );
         assertSuccessful(
                 new GeneralCommandLine(
@@ -275,18 +309,18 @@ public final class SpiceApplicationRunConfigurationProducerTest
                         "-gcflags=all=-N -l",
                         "-o",
                         debugBinary.toString(),
-                        configuration.getPackage()
-                ).withWorkingDirectory(repository),
+                        "."
+                ).withWorkingDirectory(petclinic),
                 "build complete package for debug"
         );
         ProcessOutput debug = assertSuccessful(
                 new GeneralCommandLine(
                         debugBinary.toString(),
                         "-check"
-                ).withWorkingDirectory(repository),
+                ).withWorkingDirectory(petclinic),
                 "execute debug package"
         );
-        assertTrue(combinedOutput(debug).contains("Spice commerce ready."));
+        assertTrue(combinedOutput(debug).contains("Spice petclinic ready."));
     }
 
     private static Path repositoryRoot() throws Exception {

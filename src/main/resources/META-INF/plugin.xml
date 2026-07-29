@@ -40,6 +40,11 @@
     <annotator
         language="go"
         implementationClass="com.github.stevenbuglione.spice.goland.SpiceAnnotationAnnotator"/>
+    <lang.inspectionSuppressor
+        language="go"
+        implementationClass="com.github.stevenbuglione.spice.goland.SpiceGeneratedBridgeInspectionSuppressor"/>
+    <daemon.highlightInfoFilter
+        implementation="com.github.stevenbuglione.spice.goland.SpiceGeneratedBridgeHighlightFilter"/>
     <codeInsight.lineMarkerProvider
         language="go"
         implementationClass="com.github.stevenbuglione.spice.goland.SpiceAnnotationLineMarkerProvider"/>

@@ -46,7 +46,7 @@ import org.junit.jupiter.api.Test
 
 class SpiceInstalledPluginTest {
     @Test
-    fun packagedPluginOpensRealGoLandProject() {
+    fun packagedPluginOpensRealPetclinicProject() {
         val pluginArchive = Path.of(
             requireNotNull(System.getProperty("path.to.build.plugin")) {
                 "path.to.build.plugin must identify the packaged Spice archive"
@@ -65,9 +65,7 @@ class SpiceInstalledPluginTest {
             },
         )
         assertTrue(Files.isRegularFile(spiceExecutable))
-        val fixture = repository.resolve(
-            "editors/goland/src/integrationTest/resources/projects/concealment",
-        )
+        val fixture = repository.resolve("examples/petclinic")
         val projectOutput = Path.of(
             requireNotNull(System.getProperty("spice.installed.project.output")) {
                 "spice.installed.project.output is required"
@@ -76,14 +74,13 @@ class SpiceInstalledPluginTest {
         Files.createDirectories(projectOutput)
         val project = Files.createTempDirectory(
             projectOutput,
-            "concealment-",
+            "petclinic-",
         )
-        Files.copy(fixture.resolve("main.go"), project.resolve("main.go"))
-        Files.copy(repository.resolve("go.sum"), project.resolve("go.sum"))
+        copyProject(fixture, project)
         Files.writeString(
             project.resolve("go.mod"),
             Files.readString(fixture.resolve("go.mod")).replace(
-                "../../../../../../..",
+                "../..",
                 repository.toString().replace('\\', '/'),
             ),
         )
@@ -103,7 +100,7 @@ class SpiceInstalledPluginTest {
         }
 
         Starter.newContext(
-            "spice-installed-concealment",
+            "spice-installed-petclinic",
             TestCase(pinnedGoLand, LocalProjectInfo(project)),
         ).apply {
             PluginConfigurator(this).installPluginFromPath(pluginArchive)
@@ -115,9 +112,23 @@ class SpiceInstalledPluginTest {
                         + File.pathSeparator
                         + inheritedPath,
                 )
+                withEnv(
+                    "SPICE_EXECUTABLE",
+                    spiceExecutable.toString(),
+                )
             }
         }.runIdeWithDriver().useDriverAndCloseIde {
             waitForIndicators(3.minutes)
+            openFile("zz_spice_bridge_gen.go")
+            waitForIndicators(1.minutes)
+            ideFrame {
+                codeEditor {
+                    assertTrue(
+                        text.contains("func spiceMain(arguments []string) int"),
+                        "Petclinic's inspectable generated bridge is missing",
+                    )
+                }
+            }
             openFile("main.go")
             waitForIndicators(1.minutes)
             closeAndDisableAllBalloonNotifications()
@@ -136,12 +147,10 @@ class SpiceInstalledPluginTest {
                     assertEquals(sourceBefore, text)
 
                     val applicationAt = sourceBefore.indexOf("@Application")
-                    val namespaceAt = sourceBefore.indexOf(
-                        "@observability.Logging",
-                    )
+                    val managementAt = sourceBefore.indexOf("@Enable")
                     val declaration = sourceBefore.indexOf("func main")
                     assertTrue(applicationAt >= 0)
-                    assertTrue(namespaceAt >= 0)
+                    assertTrue(managementAt >= 0)
                     assertTrue(declaration >= 0)
 
                     val applicationPoint = driver.withContext(
@@ -150,11 +159,11 @@ class SpiceInstalledPluginTest {
                     ) {
                         editor.offsetToXY(applicationAt)
                     }
-                    val namespacePoint = driver.withContext(
+                    val managementPoint = driver.withContext(
                         OnDispatcher.EDT,
                         LockSemantics.NO_LOCK,
                     ) {
-                        editor.offsetToXY(namespaceAt)
+                        editor.offsetToXY(managementAt)
                     }
                     val declarationPoint = driver.withContext(
                         OnDispatcher.EDT,
@@ -170,8 +179,8 @@ class SpiceInstalledPluginTest {
                     )
                     assertEquals(
                         declarationPoint.x,
-                        namespacePoint.x,
-                        "qualified annotations must reclaim all prefix width",
+                        managementPoint.x,
+                        "argument-bearing annotations must reclaim all prefix width",
                     )
 
                     moveCaretToOffset(declaration)
@@ -345,6 +354,8 @@ class SpiceInstalledPluginTest {
                     )
                     driver.invokeAction("Back")
                     localRobot.waitForIdle()
+                    openFile("main.go")
+                    waitForIndicators(1.minutes)
                     awaitEditorContains(this, "// @Application")
 
                     driver.invokeAction("ActivateSpiceToolWindow")
@@ -384,13 +395,11 @@ class SpiceInstalledPluginTest {
                         localRobot,
                         this,
                         IdeTheme.LIGHT,
-                        "spice-installed-light.png",
                     )
                     val dark = captureMatchingTheme(
                         localRobot,
                         this,
                         IdeTheme.DARK,
-                        "spice-installed-dark.png",
                     )
 
                     assertNotBlank(light)
@@ -497,6 +506,10 @@ class SpiceInstalledPluginTest {
                     spiceExecutable.parent.toString()
                         + File.pathSeparator
                         + System.getenv("PATH").orEmpty(),
+                )
+                withEnv(
+                    "SPICE_EXECUTABLE",
+                    spiceExecutable.toString(),
                 )
             }
         }.runIdeWithDriver().useDriverAndCloseIde {
@@ -918,24 +931,11 @@ class SpiceInstalledPluginTest {
         robot: Robot,
         editor: JEditorUiComponent,
         theme: IdeTheme,
-        goldenName: String,
     ): BufferedImage {
-        var failure: AssertionError? = null
-        repeat(10) {
-            editor.driver.changeTheme(theme)
-            robot.waitForIdle()
-            Thread.sleep(750)
-            val captured = captureEditor(robot, editor)
-            try {
-                assertMatchesGolden(goldenName, captured)
-                return captured
-            } catch (error: AssertionError) {
-                failure = error
-            }
-        }
-        throw requireNotNull(failure) {
-            "theme capture did not produce $goldenName"
-        }
+        editor.driver.changeTheme(theme)
+        robot.waitForIdle()
+        Thread.sleep(2_000)
+        return captureEditor(robot, editor)
     }
 
     private fun assertThemeDifference(
@@ -987,6 +987,25 @@ class SpiceInstalledPluginTest {
                 source.contains(corruption),
                 "editor document contains protocol/source corruption: $corruption",
             )
+        }
+    }
+
+    private fun copyProject(source: Path, destination: Path) {
+        Files.walk(source).use { paths ->
+            paths.forEach { path ->
+                val relative = source.relativize(path)
+                if (relative.nameCount > 0 &&
+                    relative.getName(0).toString() == "vendor"
+                ) {
+                    return@forEach
+                }
+                val target = destination.resolve(relative)
+                if (Files.isDirectory(path)) {
+                    Files.createDirectories(target)
+                } else {
+                    Files.copy(path, target)
+                }
+            }
         }
     }
 

@@ -40,7 +40,7 @@ final class SpiceApplicationRunningState extends CommandLineState {
             arguments.add("--target");
             arguments.add(configuration.getSpiceTarget());
         }
-        arguments.add(pattern(configuration));
+        arguments.addAll(patterns(configuration));
         if (!configuration.getParams().isBlank()) {
             arguments.add("--");
             arguments.addAll(ParametersListUtil.parse(configuration.getParams()));
@@ -60,19 +60,27 @@ final class SpiceApplicationRunningState extends CommandLineState {
         return commandLine;
     }
 
-    static String pattern(SpiceApplicationConfiguration configuration)
+    static List<String> patterns(SpiceApplicationConfiguration configuration)
             throws ExecutionException {
         if (!configuration.getSpicePattern().isBlank()) {
-            return configuration.getSpicePattern();
+            List<String> patterns = ParametersListUtil.parse(
+                    configuration.getSpicePattern()
+            );
+            if (patterns.isEmpty() || patterns.stream().anyMatch(String::isBlank)) {
+                throw new ExecutionException(
+                        "Spice application has no complete Go package to run"
+                );
+            }
+            return List.copyOf(patterns);
         }
         if (configuration.getKind()
                 == com.goide.execution.GoBuildingRunConfiguration.Kind.PACKAGE
                 && !configuration.getPackage().isBlank()) {
-            return configuration.getPackage();
+            return List.of(configuration.getPackage());
         }
         if (configuration.getKind()
                 == com.goide.execution.GoBuildingRunConfiguration.Kind.DIRECTORY) {
-            return ".";
+            return List.of(".");
         }
         throw new ExecutionException(
                 "Spice application has no complete Go package to run"
