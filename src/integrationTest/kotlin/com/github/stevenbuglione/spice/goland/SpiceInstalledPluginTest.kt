@@ -9,14 +9,23 @@ import com.sun.jna.platform.win32.WinUser.SW_RESTORE
 import com.intellij.driver.sdk.openFile
 import com.intellij.driver.sdk.closeAndDisableAllBalloonNotifications
 import com.intellij.driver.sdk.changeTheme
+import com.intellij.driver.sdk.getRunContentManager
 import com.intellij.driver.sdk.invokeAction
 import com.intellij.driver.sdk.IdeTheme
+import com.intellij.driver.sdk.RunContentDescriptorRef
+import com.intellij.driver.sdk.RunContentManager
+import com.intellij.driver.sdk.toggleLineBreakpoint
 import com.intellij.driver.sdk.ui.components.common.IdeaFrameUI
 import com.intellij.driver.sdk.ui.components.common.JEditorUiComponent
 import com.intellij.driver.sdk.ui.components.common.codeEditor
 import com.intellij.driver.sdk.ui.components.common.editorTabs
+import com.intellij.driver.sdk.ui.components.common.gutter
 import com.intellij.driver.sdk.ui.components.common.ideFrame
 import com.intellij.driver.sdk.ui.components.common.popups.DocumentationHintEditorPaneUi
+import com.intellij.driver.sdk.ui.components.common.toolwindows.debugToolWindow
+import com.intellij.driver.sdk.ui.components.elements.popupMenu
+import com.intellij.driver.sdk.ui.components.go.goRunToolWindow
+import com.intellij.driver.sdk.ui.ui
 import com.intellij.driver.sdk.waitForIndicators
 import com.intellij.driver.model.LockSemantics
 import com.intellij.driver.model.OnDispatcher
@@ -36,6 +45,7 @@ import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.minutes
@@ -43,7 +53,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
 
+@Timeout(value = 8, unit = TimeUnit.MINUTES)
 class SpiceInstalledPluginTest {
     @Test
     fun packagedPluginOpensRealPetclinicProject() {
@@ -115,6 +127,10 @@ class SpiceInstalledPluginTest {
                 withEnv(
                     "SPICE_EXECUTABLE",
                     spiceExecutable.toString(),
+                )
+                withEnv(
+                    "SPICE_PETCLINIC_ADDRESS",
+                    "127.0.0.1:0",
                 )
             }
         }.runIdeWithDriver().useDriverAndCloseIde {
@@ -198,8 +214,6 @@ class SpiceInstalledPluginTest {
                         "typing @ must create physical valid-Go comment syntax",
                     )
                     assertSafeDocument(text)
-                    frame.saveAll()
-                    awaitSourceContains(sourceFile, "// @")
 
                     driver.invokeAction("\$Undo")
                     driver.invokeAction("\$Undo")
@@ -214,6 +228,23 @@ class SpiceInstalledPluginTest {
 
                     driver.invokeAction("\$Undo")
                     driver.invokeAction("\$Undo")
+                    assertEquals(sourceBefore, text)
+                    driver.invokeAction("\$Redo")
+                    driver.invokeAction("\$Redo")
+                    robot.waitForIdle()
+                    assertTrue(text.contains("// @\nfunc main"))
+                    frame.saveAll()
+                    awaitSourceContains(sourceFile, "// @")
+
+                    moveCaretToOffset(text.indexOf("// @\nfunc main"))
+                    driver.invokeAction("EditorDeleteLine")
+                    val blankLineMarker = "// @Logging\n\nfunc main"
+                    val blankLine = text.indexOf(blankLineMarker)
+                    assertTrue(blankLine >= 0)
+                    moveCaretToOffset(
+                        blankLine + "// @Logging\n".length,
+                    )
+                    driver.invokeAction("EditorDeleteLine")
                     driver.invokeAction("ReformatCode")
                     robot.waitForIdle()
                     assertEquals(sourceBefore, text)
@@ -433,6 +464,15 @@ class SpiceInstalledPluginTest {
                     assertMatchesGolden(
                         "spice-installed-dark.png",
                         dark,
+                    )
+                    exerciseInstalledRunAndDebug(
+                        frame,
+                        this,
+                        sourceFile,
+                        sourceBefore,
+                        screenshotDirectory,
+                        localRobot,
+                        project.fileName.toString(),
                     )
                 }
             }
@@ -760,6 +800,223 @@ class SpiceInstalledPluginTest {
             "installed GoLand window for $projectName did not become "
                 + "the foreground window",
         )
+    }
+
+    private fun exerciseInstalledRunAndDebug(
+        frame: IdeaFrameUI,
+        editor: JEditorUiComponent,
+        sourceFile: Path,
+        source: String,
+        evidenceDirectory: Path,
+        robot: Robot,
+        projectName: String,
+    ) {
+        val declarationOffset = source.indexOf("func main()")
+        val executableOffset = source.indexOf("os.Exit(")
+        assertTrue(declarationOffset >= 0)
+        assertTrue(executableOffset >= 0)
+        val executableLine = source.take(executableOffset).count { it == '\n' }
+        val runContent = editor.driver.getRunContentManager(
+            requireNotNull(frame.project),
+        )
+
+        editor.moveCaretToOffset(declarationOffset)
+        activateIdeWindow(projectName, robot)
+        robot.waitForIdle()
+        val gutterIcons = frame.gutter().icons
+        val gutterEvidence = gutterIcons.joinToString("\n") { icon ->
+            "line=${icon.line} tooltip=${icon.mark.getTooltipText()} " +
+                "icon=${icon.getIconPath()}"
+        }
+        Files.writeString(
+            evidenceDirectory.resolve("spice-installed-gutter.txt"),
+            gutterEvidence,
+        )
+        val runMarker = gutterIcons.firstOrNull { icon ->
+            icon.mark.getTooltipText()
+                ?.contains("Run Application", ignoreCase = true) == true &&
+                icon.getIconPath().contains("gutter/run")
+        }
+        assertTrue(
+            runMarker != null,
+            "installed Petclinic main has no runnable gutter marker; " +
+                "actual markers:\n$gutterEvidence",
+        )
+
+        val beforeRun = runContent.getAllDescriptors()
+            .map(RunContentDescriptorRef::getExecutionId)
+            .toSet()
+        runMarker!!.click()
+        Thread.sleep(1_000)
+        if (newDescriptor(runContent, beforeRun) == null) {
+            selectGutterAction(frame, "Run 'Spice ")
+        }
+        val runDescriptor = awaitNewDescriptor(runContent, beforeRun)
+        assertTrue(
+            runDescriptor.getDisplayName().startsWith("Spice "),
+            "gutter Run selected ${runDescriptor.getDisplayName()} instead of " +
+                "the Spice package configuration",
+        )
+        editor.driver.invokeAction("ActivateRunToolWindow")
+        val runOutput = awaitRunOutput(frame, "Spice application starting")
+        Files.writeString(
+            evidenceDirectory.resolve("spice-installed-run.txt"),
+            "configuration=${runDescriptor.getDisplayName()}\n$runOutput",
+        )
+        assertNoFormerRunFailure(runOutput)
+        val runProcess = requireNotNull(runDescriptor.getProcessHandler())
+        runProcess.destroyProcess()
+        assertTrue(
+            runProcess.waitFor(30_000),
+            "installed gutter Run did not stop within 30 seconds",
+        )
+
+        editor.driver.openFile("main.go")
+        editor.moveCaretToOffset(executableOffset)
+        editor.driver.toggleLineBreakpoint(
+            sourceFile.fileName.toString(),
+            executableLine,
+        )
+        robot.waitForIdle()
+        val beforeDebug = runContent.getAllDescriptors()
+            .map(RunContentDescriptorRef::getExecutionId)
+            .toSet()
+        editor.driver.invokeAction("DebugClass")
+        val debugDescriptor = awaitNewDescriptor(
+            runContent,
+            beforeDebug,
+            180_000,
+        )
+        assertTrue(
+            debugDescriptor.getDisplayName().startsWith("Spice "),
+            "Debug selected ${debugDescriptor.getDisplayName()} instead of the " +
+                "Spice package configuration",
+        )
+        val debugEvidence = awaitDebuggerSuspension(frame, 180_000)
+        Files.writeString(
+            evidenceDirectory.resolve("spice-installed-debug.txt"),
+            "configuration=${debugDescriptor.getDisplayName()}\n" + debugEvidence,
+        )
+        val debugImage = captureFrame(robot, frame)
+        assertNotBlank(debugImage)
+        assertTrue(
+            ImageIO.write(
+                debugImage,
+                "png",
+                evidenceDirectory
+                    .resolve("spice-installed-debug-breakpoint.png")
+                    .toFile(),
+            ),
+        )
+        assertNoFormerRunFailure(debugEvidence)
+        val debugProcess = requireNotNull(debugDescriptor.getProcessHandler())
+        debugProcess.destroyProcess()
+        assertTrue(
+            debugProcess.waitFor(30_000),
+            "installed native Debug process did not stop within 30 seconds",
+        )
+        assertEquals(source, editor.text)
+        assertEquals(source, Files.readString(sourceFile))
+    }
+
+    private fun awaitRunOutput(
+        frame: IdeaFrameUI,
+        expected: String,
+        timeoutMillis: Long = 90_000,
+    ): String {
+        val deadline = System.nanoTime() + timeoutMillis * 1_000_000
+        var output = ""
+        while (System.nanoTime() < deadline) {
+            runCatching {
+                frame.goRunToolWindow {
+                    output = getEditorText()
+                }
+            }
+            if (output.contains(expected)) {
+                return output
+            }
+            Thread.sleep(500)
+        }
+        throw AssertionError(
+            "installed Run output did not contain $expected; actual: $output",
+        )
+    }
+
+    private fun selectGutterAction(
+        frame: IdeaFrameUI,
+        prefix: String,
+    ) {
+        val popup = frame.driver.ui.popupMenu()
+        val items = popup.itemsList()
+        val item = items.firstOrNull { it.startsWith(prefix) }
+        assertTrue(
+            item != null,
+            "gutter popup does not contain $prefix; actual items: $items",
+        )
+        popup.select(item!!)
+    }
+
+    private fun awaitDebuggerSuspension(
+        frame: IdeaFrameUI,
+        timeoutMillis: Long,
+    ): String {
+        val deadline = System.nanoTime() + timeoutMillis * 1_000_000
+        var evidence = ""
+        while (System.nanoTime() < deadline) {
+            var suspended = false
+            runCatching {
+                frame.debugToolWindow {
+                    evidence = getAllTexts { true }
+                        .joinToString("\n") { it.text }
+                    suspended = resumeButton.isEnabled()
+                }
+            }
+            if (suspended) {
+                return evidence
+            }
+            Thread.sleep(500)
+        }
+        throw AssertionError(
+            "native Go/Delve debugger did not suspend at the Petclinic " +
+                "breakpoint; actual tool-window text: $evidence",
+        )
+    }
+
+    private fun awaitNewDescriptor(
+        manager: RunContentManager,
+        previous: Set<Long>,
+        timeoutMillis: Long = 90_000,
+    ): RunContentDescriptorRef {
+        val deadline = System.nanoTime() + timeoutMillis * 1_000_000
+        while (System.nanoTime() < deadline) {
+            newDescriptor(manager, previous)?.let { return it }
+            Thread.sleep(250)
+        }
+        throw AssertionError(
+            "installed IDE did not create a new Run/Debug process descriptor",
+        )
+    }
+
+    private fun newDescriptor(
+        manager: RunContentManager,
+        previous: Set<Long>,
+    ): RunContentDescriptorRef? = manager.getAllDescriptors().firstOrNull {
+        it.getExecutionId() !in previous
+    }
+
+    private fun assertNoFormerRunFailure(output: String) {
+        listOf(
+            "invalid character U+0040 '@'",
+            "expected declaration, found 'ILLEGAL'",
+            "undefined: spiceMain",
+            "gocommand-",
+        ).forEach { formerFailure ->
+            assertFalse(
+                output.contains(formerFailure),
+                "installed Run/Debug repeated former corruption: " +
+                    formerFailure,
+            )
+        }
     }
 
     private fun captureFrame(
