@@ -23,7 +23,8 @@ while that compiler restarts.
 for the plugin artifact, GoLand build, Java/Go/Gradle toolchains, core Spice,
 and the standalone Petclinic acceptance application. The core and Petclinic
 Git object IDs are test inputs, not runtime dependencies of the installed
-plugin.
+plugin. The complete maintenance, license, security, cancellation, and data
+review is recorded in [`docs/dependency-review.md`](docs/dependency-review.md).
 
 ## Build and verify
 
