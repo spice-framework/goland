@@ -103,10 +103,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
 
     public void testGutterContextPrefersSpiceOverEveryGoApplicationConfiguration()
             throws Exception {
-        VfsRootAccess.allowRootAccess(
-                getTestRootDisposable(),
-                configuredRoot("spice.plugin.root").toString()
-        );
+        allowConfiguredPluginAndWorkspaceAccess();
         myFixture.configureByText(
                 "main.go",
                 """
@@ -180,10 +177,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
 
     public void testConfigurationPersistsSpiceTargetAndPattern()
             throws Exception {
-        VfsRootAccess.allowRootAccess(
-                getTestRootDisposable(),
-                configuredRoot("spice.plugin.root").toString()
-        );
+        allowConfiguredPluginAndWorkspaceAccess();
         SpiceApplicationConfiguration original = configuration();
         original.setSpiceTarget("example.com/shop/cmd/server");
         original.setSpicePattern(". ./domain ./presentation");
@@ -334,6 +328,25 @@ public final class SpiceApplicationRunConfigurationProducerTest
             throw new IllegalStateException(property + " is required");
         }
         return Path.of(configured).toRealPath();
+    }
+
+    private void allowConfiguredPluginAndWorkspaceAccess() throws Exception {
+        Path plugin = configuredRoot("spice.plugin.root");
+        VfsRootAccess.allowRootAccess(
+                getTestRootDisposable(),
+                plugin.toString()
+        );
+        for (Path ancestor = plugin.getParent();
+             ancestor != null;
+             ancestor = ancestor.getParent()) {
+            Path workspace = ancestor.resolve("go.work");
+            if (Files.isRegularFile(workspace)) {
+                VfsRootAccess.allowRootAccess(
+                        getTestRootDisposable(),
+                        workspace.toString()
+                );
+            }
+        }
     }
 
     private static void deleteTree(Path root) throws Exception {
