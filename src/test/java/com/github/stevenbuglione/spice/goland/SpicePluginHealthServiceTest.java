@@ -8,18 +8,18 @@ public final class SpicePluginHealthServiceTest extends TestCase {
         assertEquals(
                 List.of(
                         "example.com/acme/cmd/spice-annotations",
-                        "github.com/spice-framework/spice/cmd/spice-annotation-core"
+                        "github.com/spice-framework/toolchain/cmd/spice-annotation-core"
                 ),
                 SpicePluginHealthService.parseToolDirectives(
                         """
                                 module example.com/app
 
                                 tool (
-                                    github.com/spice-framework/spice/cmd/spice-annotation-core
+                                    github.com/spice-framework/toolchain/cmd/spice-annotation-core
                                     example.com/acme/cmd/spice-annotations // pinned by require
                                 )
 
-                                tool github.com/spice-framework/spice/cmd/spice-annotation-core
+                                tool github.com/spice-framework/toolchain/cmd/spice-annotation-core
                                 require example.com/not-a-tool v1.0.0
                                 """
                 )

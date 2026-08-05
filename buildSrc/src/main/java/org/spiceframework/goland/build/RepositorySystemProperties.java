@@ -12,12 +12,16 @@ public abstract class RepositorySystemProperties
     public abstract DirectoryProperty getCore();
 
     @Internal
+    public abstract DirectoryProperty getToolchain();
+
+    @Internal
     public abstract DirectoryProperty getPetclinic();
 
     @Override
     public final Iterable<String> asArguments() {
         return List.of(
                 "-Dspice.core.root=" + getCore().get().getAsFile(),
+                "-Dspice.toolchain.root=" + getToolchain().get().getAsFile(),
                 "-Dspice.petclinic.root=" + getPetclinic().get().getAsFile()
         );
     }

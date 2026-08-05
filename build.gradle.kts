@@ -33,9 +33,12 @@ repositories {
 val localGoLandPath = providers.gradleProperty("golandPath")
 val spiceCorePath = providers.gradleProperty("spiceCorePath")
     .orElse(providers.environmentVariable("SPICE_CORE_ROOT"))
+val spiceToolchainPath = providers.gradleProperty("spiceToolchainPath")
+    .orElse(providers.environmentVariable("SPICE_TOOLCHAIN_ROOT"))
 val petclinicPath = providers.gradleProperty("petclinicPath")
     .orElse(providers.environmentVariable("SPICE_PETCLINIC_ROOT"))
 val spiceCoreDirectory = layout.dir(spiceCorePath.map(::File))
+val spiceToolchainDirectory = layout.dir(spiceToolchainPath.map(::File))
 val petclinicDirectory = layout.dir(petclinicPath.map(::File))
 val spiceCoreInputs = spiceCoreDirectory.map { directory ->
     directory.asFileTree.matching {
@@ -46,6 +49,17 @@ val spiceCoreInputs = spiceCoreDirectory.map { directory ->
         exclude(".tmp/**")
         exclude("bin/**")
         exclude("editors/**")
+        exclude("out/**")
+    }
+}
+val spiceToolchainInputs = spiceToolchainDirectory.map { directory ->
+    directory.asFileTree.matching {
+        include("**/*.go")
+        include("go.mod")
+        include("go.sum")
+        include("vendor/modules.txt")
+        exclude(".tmp/**")
+        exclude("bin/**")
         exclude("out/**")
     }
 }
@@ -180,10 +194,11 @@ tasks {
         maxHeapSize = "2g"
         systemProperty("spice.lsp.disabled", "true")
         systemProperty("spice.plugin.root", rootProject.projectDir.canonicalPath)
-        inputs.files(spiceCoreInputs, petclinicInputs)
+        inputs.files(spiceCoreInputs, spiceToolchainInputs, petclinicInputs)
         jvmArgumentProviders.add(
             objects.newInstance(RepositorySystemProperties::class.java).apply {
                 core.set(spiceCoreDirectory)
+                toolchain.set(spiceToolchainDirectory)
                 petclinic.set(petclinicDirectory)
             },
         )
@@ -208,7 +223,7 @@ val integrationTest = intellijPlatformTesting.testIdeUi.register(
         useJUnitPlatform()
         maxHeapSize = "2g"
         systemProperty("spice.plugin.root", rootProject.projectDir.canonicalPath)
-        inputs.files(spiceCoreInputs, petclinicInputs)
+        inputs.files(spiceCoreInputs, spiceToolchainInputs, petclinicInputs)
         systemProperty(
             "spice.goland.build",
             compatibilityValue("golandBuild"),
@@ -216,6 +231,7 @@ val integrationTest = intellijPlatformTesting.testIdeUi.register(
         jvmArgumentProviders.add(
             objects.newInstance(RepositorySystemProperties::class.java).apply {
                 core.set(spiceCoreDirectory)
+                toolchain.set(spiceToolchainDirectory)
                 petclinic.set(petclinicDirectory)
             },
         )
@@ -252,10 +268,10 @@ tasks.register<Exec>("buildSpiceForIntegrationTest") {
     mustRunAfter("prepareSandbox")
     val output = integrationSpice.get().asFile
     inputs.files(
-        spiceCoreInputs,
+        spiceToolchainInputs,
     )
     outputs.file(output)
-    workingDir(spiceCoreDirectory.map { it.dir("cmd/spice") })
+    workingDir(spiceToolchainDirectory.map { it.dir("cmd/spice") })
     environment("GOWORK", "off")
     environment("GOPROXY", "off")
     environment("GOTOOLCHAIN", "local")
@@ -289,9 +305,11 @@ val verifyCompatibilityInputs = tasks.register<VerifyCompatibilityInputs>(
 ) {
     compatibilityFile.set(layout.projectDirectory.file("compatibility.properties"))
     coreGoMod.set(spiceCoreDirectory.map { it.file("go.mod") })
+    toolchainGoMod.set(spiceToolchainDirectory.map { it.file("go.mod") })
     petclinicGoMod.set(petclinicDirectory.map { it.file("go.mod") })
     goVersion.set(compatibilityValue("goVersion"))
     spiceCommit.set(compatibilityValue("spiceCommit"))
+    toolchainCommit.set(compatibilityValue("toolchainCommit"))
     petclinicCommit.set(compatibilityValue("petclinicCommit"))
 }
 

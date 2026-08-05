@@ -21,17 +21,27 @@ while that compiler restarts.
 
 [`compatibility.properties`](compatibility.properties) is the reviewed tuple
 for the plugin artifact, GoLand build, Java/Go/Gradle toolchains, core Spice,
-and the standalone Petclinic acceptance application. The core and Petclinic
-Git object IDs are test inputs, not runtime dependencies of the installed
-plugin. The complete maintenance, license, security, cancellation, and data
+the standalone Spice toolchain, and the Petclinic acceptance application. The
+three Git object IDs are test inputs, not runtime dependencies of the installed
+plugin. Descriptor source/navigation remains rooted in core; CLI/LSP build,
+Run, and Debug fixtures use the standalone toolchain. The complete maintenance,
+license, security, cancellation, and data
 review is recorded in [`docs/dependency-review.md`](docs/dependency-review.md).
+
+The current public module pair is core
+`v0.0.0-20260805222830-a2ecd56df246` and toolchain
+`v0.0.0-20260805222344-fd87027fc195`. The installed-IDE fixture declares those
+versions and replaces them only with the corresponding compatibility checkouts
+for deterministic, offline UI verification. Those test-only replacements are
+never written to an application or shipped as plugin configuration.
 
 ## Build and verify
 
-Provide canonical core and Petclinic checkouts explicitly:
+Provide canonical core, toolchain, and Petclinic checkouts explicitly:
 
 ```text
 SPICE_CORE_ROOT=/path/to/spice \
+SPICE_TOOLCHAIN_ROOT=/path/to/toolchain \
 SPICE_PETCLINIC_ROOT=/path/to/petclinic \
 ./gradlew --no-daemon --no-parallel --console=plain verifyRepository
 ```
@@ -40,6 +50,7 @@ PowerShell:
 
 ```powershell
 $env:SPICE_CORE_ROOT = "D:\src\spice"
+$env:SPICE_TOOLCHAIN_ROOT = "D:\src\toolchain"
 $env:SPICE_PETCLINIC_ROOT = "D:\src\petclinic"
 .\gradlew.bat --no-daemon --no-parallel --console=plain verifyRepository
 ```

@@ -92,7 +92,7 @@ record SpiceDescriptorMetadata(
 
     private static String toolValue(String expression) {
         if ("coretool.Path".equals(expression)) {
-            return "github.com/spice-framework/spice/cmd/spice-annotation-core";
+            return "github.com/spice-framework/toolchain/cmd/spice-annotation-core";
         }
         return expression;
     }

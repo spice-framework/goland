@@ -10,8 +10,9 @@ compiler and LSP remain authoritative for framework semantics.
 ## Repository boundaries
 
 - Go 1.26.5, Java 25, Gradle 9.6.1, and GoLand 2026.2.0.1 are mandatory.
-- Core Spice and Petclinic are explicit external verification inputs. Never
-  infer them from a parent directory or copy their source into this repository.
+- Core Spice, the standalone toolchain, and Petclinic are explicit external
+  verification inputs. Never infer them from a parent directory or copy their
+  source into this repository.
 - `compatibility.properties` is the reviewed compatibility tuple and must use
   full Git object IDs.
 - The physical editor document must always retain valid `// @...` Go comments.
@@ -31,7 +32,8 @@ Work directly on local `main` in bounded commits. Before each commit run:
 gradlew verifyRepository
 ```
 
-using the explicit `SPICE_CORE_ROOT` and `SPICE_PETCLINIC_ROOT` checkouts. Any
+using the explicit `SPICE_CORE_ROOT`, `SPICE_TOOLCHAIN_ROOT`, and
+`SPICE_PETCLINIC_ROOT` checkouts. Any
 change to presentation, navigation, completion edits, Run/Debug, or the LSP
 lifecycle must also pass `gradlew verifyInstalledIde` on Windows and Linux.
 Commit only green trees, fetch immediately before push, and stop if

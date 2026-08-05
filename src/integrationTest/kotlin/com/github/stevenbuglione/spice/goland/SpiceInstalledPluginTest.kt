@@ -491,6 +491,9 @@ class SpiceInstalledPluginTest {
         val core = Path.of(
             requireNotNull(System.getProperty("spice.core.root")),
         )
+        val toolchain = Path.of(
+            requireNotNull(System.getProperty("spice.toolchain.root")),
+        )
         val installedGoLand = System.getProperty("spice.goland.path")
             ?.let(Path::of)
         val spiceExecutable = Path.of(
@@ -520,13 +523,18 @@ class SpiceInstalledPluginTest {
             fixture.resolve("payments/payments.go"),
             project.resolve("payments/payments.go"),
         )
-        Files.copy(core.resolve("go.sum"), project.resolve("go.sum"))
+        Files.copy(toolchain.resolve("go.sum"), project.resolve("go.sum"))
         Files.writeString(
             project.resolve("go.mod"),
-            Files.readString(fixture.resolve("go.mod")).replace(
-                "../../../../../../..",
-                core.toString().replace('\\', '/'),
-            ),
+            Files.readString(fixture.resolve("go.mod"))
+                .replace(
+                    "__SPICE_CORE_ROOT__",
+                    core.toString().replace('\\', '/'),
+                )
+                .replace(
+                    "__SPICE_TOOLCHAIN_ROOT__",
+                    toolchain.toString().replace('\\', '/'),
+                ),
         )
         val goRoot = configureGoRoot(project)
         val pinnedGoLand = if (installedGoLand != null) {

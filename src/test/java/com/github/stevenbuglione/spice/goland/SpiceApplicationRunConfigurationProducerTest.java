@@ -227,7 +227,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
 
     public void testRunAndDebugCommandsExecuteFoldedPetclinicPackage()
             throws Exception {
-        Path core = configuredRoot("spice.core.root");
+        Path toolchain = configuredRoot("spice.toolchain.root");
         Path petclinic = configuredRoot("spice.petclinic.root");
         Path temporary = Files.createTempDirectory("spice-goland-run-");
         try {
@@ -242,7 +242,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
                             "-o",
                             executable.toString(),
                             "./cmd/spice"
-                    ).withWorkingDirectory(core),
+                    ).withWorkingDirectory(toolchain),
                     "build Spice test executable"
             );
 

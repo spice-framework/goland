@@ -29,6 +29,10 @@ public abstract class VerifyCompatibilityInputs extends DefaultTask {
 
     @InputFile
     @PathSensitive(PathSensitivity.RELATIVE)
+    public abstract RegularFileProperty getToolchainGoMod();
+
+    @InputFile
+    @PathSensitive(PathSensitivity.RELATIVE)
     public abstract RegularFileProperty getPetclinicGoMod();
 
     @Input
@@ -36,6 +40,9 @@ public abstract class VerifyCompatibilityInputs extends DefaultTask {
 
     @Input
     public abstract Property<String> getSpiceCommit();
+
+    @Input
+    public abstract Property<String> getToolchainCommit();
 
     @Input
     public abstract Property<String> getPetclinicCommit();
@@ -48,16 +55,27 @@ public abstract class VerifyCompatibilityInputs extends DefaultTask {
                 "spiceCorePath"
         );
         requireModule(
+                getToolchainGoMod(),
+                "github.com/spice-framework/toolchain",
+                "spiceToolchainPath"
+        );
+        requireModule(
                 getPetclinicGoMod(),
                 "github.com/spice-framework/petclinic",
                 "petclinicPath"
         );
         requireCommit("spiceCommit", getSpiceCommit().get());
+        requireCommit("toolchainCommit", getToolchainCommit().get());
         requireCommit("petclinicCommit", getPetclinicCommit().get());
         requireCheckout(
                 "spiceCommit",
                 getCoreGoMod(),
                 getSpiceCommit().get()
+        );
+        requireCheckout(
+                "toolchainCommit",
+                getToolchainGoMod(),
+                getToolchainCommit().get()
         );
         requireCheckout(
                 "petclinicCommit",
