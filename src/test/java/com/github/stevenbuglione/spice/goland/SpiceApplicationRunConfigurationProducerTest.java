@@ -101,10 +101,11 @@ public final class SpiceApplicationRunConfigurationProducerTest
         );
     }
 
-    public void testGutterContextPrefersSpiceOverEveryGoApplicationConfiguration() {
+    public void testGutterContextPrefersSpiceOverEveryGoApplicationConfiguration()
+            throws Exception {
         VfsRootAccess.allowRootAccess(
                 getTestRootDisposable(),
-                Path.of(System.getProperty("spice.repository.root")).toString()
+                configuredRoot("spice.plugin.root").toString()
         );
         myFixture.configureByText(
                 "main.go",
@@ -181,7 +182,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
             throws Exception {
         VfsRootAccess.allowRootAccess(
                 getTestRootDisposable(),
-                repositoryRoot().toString()
+                configuredRoot("spice.plugin.root").toString()
         );
         SpiceApplicationConfiguration original = configuration();
         original.setSpiceTarget("example.com/shop/cmd/server");
@@ -232,7 +233,8 @@ public final class SpiceApplicationRunConfigurationProducerTest
 
     public void testRunAndDebugCommandsExecuteFoldedPetclinicPackage()
             throws Exception {
-        Path repository = repositoryRoot();
+        Path core = configuredRoot("spice.core.root");
+        Path petclinic = configuredRoot("spice.petclinic.root");
         Path temporary = Files.createTempDirectory("spice-goland-run-");
         try {
             Path executable = temporary.resolve(
@@ -246,14 +248,14 @@ public final class SpiceApplicationRunConfigurationProducerTest
                             "-o",
                             executable.toString(),
                             "./cmd/spice"
-                    ).withWorkingDirectory(repository),
+                    ).withWorkingDirectory(core),
                     "build Spice test executable"
             );
 
             String previous = System.getProperty("spice.executable");
             System.setProperty("spice.executable", executable.toString());
             try {
-                executePetclinicRunAndDebug(repository, temporary);
+                executePetclinicRunAndDebug(petclinic, temporary);
             } finally {
                 if (previous == null) {
                     System.clearProperty("spice.executable");
@@ -266,7 +268,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
         }
 
         String physicalSource = Files.readString(
-                repository.resolve("examples/petclinic/main.go"),
+                petclinic.resolve("main.go"),
                 StandardCharsets.UTF_8
         );
         assertTrue(physicalSource.contains("// @Application"));
@@ -274,14 +276,13 @@ public final class SpiceApplicationRunConfigurationProducerTest
     }
 
     private void executePetclinicRunAndDebug(
-            Path repository,
+            Path petclinic,
             Path temporary
     ) throws ExecutionException {
-        Path petclinic = repository.resolve("examples/petclinic");
         SpiceApplicationConfiguration configuration = configuration();
         configuration.setKind(GoBuildingRunConfiguration.Kind.PACKAGE);
         configuration.setPackage(
-                "github.com/spice-framework/spice/examples/petclinic"
+                "github.com/spice-framework/petclinic"
         );
         configuration.setWorkingDirectory(petclinic.toString());
         configuration.setSpiceTarget("Petclinic");
@@ -327,10 +328,12 @@ public final class SpiceApplicationRunConfigurationProducerTest
         assertTrue(combinedOutput(debug).contains("Spice petclinic ready."));
     }
 
-    private static Path repositoryRoot() throws Exception {
-        return Path.of(
-                System.getProperty("spice.repository.root")
-        ).toRealPath();
+    private static Path configuredRoot(String property) throws Exception {
+        String configured = System.getProperty(property);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalStateException(property + " is required");
+        }
+        return Path.of(configured).toRealPath();
     }
 
     private static void deleteTree(Path root) throws Exception {

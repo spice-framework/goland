@@ -1,6 +1,10 @@
 import org.gradle.api.artifacts.dsl.LockMode
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.spiceframework.goland.build.RepositorySystemProperties
+import org.spiceframework.goland.build.VerifyCompatibilityInputs
+import org.spiceframework.goland.build.VerifyWrapperIntegrity
+import java.util.Properties
 
 plugins {
     java
@@ -8,8 +12,16 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
-group = "com.github.stevenbuglione.spice"
-version = "0.2.0"
+val compatibility = Properties().apply {
+    rootProject.file("compatibility.properties").inputStream().use(::load)
+}
+fun compatibilityValue(name: String): String =
+    requireNotNull(compatibility.getProperty(name)) {
+        "compatibility.properties is missing $name"
+    }
+
+group = "org.spiceframework.goland"
+version = compatibilityValue("pluginVersion")
 
 repositories {
     mavenCentral()
@@ -19,7 +31,39 @@ repositories {
 }
 
 val localGoLandPath = providers.gradleProperty("golandPath")
-val repositoryRoot = rootProject.projectDir.resolve("../..")
+val spiceCorePath = providers.gradleProperty("spiceCorePath")
+    .orElse(providers.environmentVariable("SPICE_CORE_ROOT"))
+val petclinicPath = providers.gradleProperty("petclinicPath")
+    .orElse(providers.environmentVariable("SPICE_PETCLINIC_ROOT"))
+val spiceCoreDirectory = layout.dir(spiceCorePath.map(::File))
+val petclinicDirectory = layout.dir(petclinicPath.map(::File))
+val spiceCoreInputs = spiceCoreDirectory.map { directory ->
+    directory.asFileTree.matching {
+        include("**/*.go")
+        include("go.mod")
+        include("go.sum")
+        include("vendor/modules.txt")
+        exclude(".tmp/**")
+        exclude("bin/**")
+        exclude("editors/**")
+        exclude("out/**")
+    }
+}
+val petclinicInputs = petclinicDirectory.map { directory ->
+    directory.asFileTree.matching {
+        include("**/*.css")
+        include("**/*.go")
+        include("**/*.html")
+        include("**/*.json")
+        include("**/*.properties")
+        include("**/*.sql")
+        include("go.mod")
+        include("go.sum")
+        include("vendor/modules.txt")
+        exclude(".git/**")
+    }
+}
+
 val spiceExecutableName = if (
     System.getProperty("os.name").lowercase().contains("windows")
 ) {
@@ -45,7 +89,7 @@ dependencies {
         if (localGoLandPath.isPresent) {
             local(localGoLandPath.get())
         } else {
-            goland("2026.2.0.1")
+            goland(compatibilityValue("golandVersion"))
         }
         bundledPlugin("org.jetbrains.plugins.go")
         pluginVerifier("1.409")
@@ -71,12 +115,14 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(
+            compatibilityValue("javaVersion").toInt(),
+        )
     }
 }
 
 kotlin {
-    jvmToolchain(25)
+    jvmToolchain(compatibilityValue("javaVersion").toInt())
     compilerOptions {
         jvmTarget = JvmTarget.JVM_25
         allWarningsAsErrors = true
@@ -109,7 +155,7 @@ intellijPlatform {
         }
         vendor {
             name = "Spice contributors"
-            url = "https://github.com/spice-framework/spice"
+            url = "https://github.com/spice-framework/goland"
         }
     }
     pluginVerification {
@@ -121,7 +167,7 @@ intellijPlatform {
 
 tasks {
     jar {
-        from("../../LICENSE")
+        from("LICENSE")
     }
 
     withType<JavaCompile>().configureEach {
@@ -133,9 +179,13 @@ tasks {
     test {
         maxHeapSize = "2g"
         systemProperty("spice.lsp.disabled", "true")
-        systemProperty(
-            "spice.repository.root",
-            rootProject.projectDir.resolve("../..").canonicalPath
+        systemProperty("spice.plugin.root", rootProject.projectDir.canonicalPath)
+        inputs.files(spiceCoreInputs, petclinicInputs)
+        jvmArgumentProviders.add(
+            objects.newInstance(RepositorySystemProperties::class.java).apply {
+                core.set(spiceCoreDirectory)
+                petclinic.set(petclinicDirectory)
+            },
         )
         systemProperty(
             "spice.visual.output",
@@ -157,9 +207,17 @@ val integrationTest = intellijPlatformTesting.testIdeUi.register(
         classpath = integrationTestSourceSet.runtimeClasspath
         useJUnitPlatform()
         maxHeapSize = "2g"
+        systemProperty("spice.plugin.root", rootProject.projectDir.canonicalPath)
+        inputs.files(spiceCoreInputs, petclinicInputs)
         systemProperty(
-            "spice.repository.root",
-            repositoryRoot.canonicalPath
+            "spice.goland.build",
+            compatibilityValue("golandBuild"),
+        )
+        jvmArgumentProviders.add(
+            objects.newInstance(RepositorySystemProperties::class.java).apply {
+                core.set(spiceCoreDirectory)
+                petclinic.set(petclinicDirectory)
+            },
         )
         systemProperty(
             "spice.integration.executable",
@@ -194,18 +252,13 @@ tasks.register<Exec>("buildSpiceForIntegrationTest") {
     mustRunAfter("prepareSandbox")
     val output = integrationSpice.get().asFile
     inputs.files(
-        fileTree(repositoryRoot) {
-            include("**/*.go")
-            include("go.mod")
-            include("go.sum")
-            exclude("editors/goland/build/**")
-            exclude("editors/goland/.intellijPlatform/**")
-            exclude("out/**")
-        }
+        spiceCoreInputs,
     )
     outputs.file(output)
-    workingDir(repositoryRoot.resolve("cmd/spice"))
+    workingDir(spiceCoreDirectory.map { it.dir("cmd/spice") })
     environment("GOWORK", "off")
+    environment("GOPROXY", "off")
+    environment("GOTOOLCHAIN", "local")
     commandLine(
         "go",
         "build",
@@ -217,4 +270,55 @@ tasks.register<Exec>("buildSpiceForIntegrationTest") {
     doFirst {
         output.parentFile.mkdirs()
     }
+}
+
+val verifyWrapperIntegrity = tasks.register<VerifyWrapperIntegrity>(
+    "verifyWrapperIntegrity",
+) {
+    wrapperProperties.set(layout.projectDirectory.file("gradle/wrapper/gradle-wrapper.properties"))
+    wrapperJar.set(layout.projectDirectory.file("gradle/wrapper/gradle-wrapper.jar"))
+    unixScript.set(layout.projectDirectory.file("gradlew"))
+    windowsScript.set(layout.projectDirectory.file("gradlew.bat"))
+    gradleVersion.set(compatibilityValue("gradleVersion"))
+    distributionSha256.set(compatibilityValue("gradleDistributionSha256"))
+    wrapperSha256.set(compatibilityValue("gradleWrapperSha256"))
+}
+
+val verifyCompatibilityInputs = tasks.register<VerifyCompatibilityInputs>(
+    "verifyCompatibilityInputs",
+) {
+    compatibilityFile.set(layout.projectDirectory.file("compatibility.properties"))
+    coreGoMod.set(spiceCoreDirectory.map { it.file("go.mod") })
+    petclinicGoMod.set(petclinicDirectory.map { it.file("go.mod") })
+    goVersion.set(compatibilityValue("goVersion"))
+    spiceCommit.set(compatibilityValue("spiceCommit"))
+    petclinicCommit.set(compatibilityValue("petclinicCommit"))
+}
+
+tasks.named("check") {
+    dependsOn(verifyWrapperIntegrity, verifyCompatibilityInputs)
+}
+
+tasks.register("verifyRepository") {
+    group = "verification"
+    description = "Runs unit, packaging, structure, compatibility, and wrapper gates."
+    dependsOn(
+        verifyWrapperIntegrity,
+        verifyCompatibilityInputs,
+        "test",
+        "buildPlugin",
+        "verifyPluginProjectConfiguration",
+        "verifyPluginStructure",
+        "verifyPlugin",
+    )
+}
+
+tasks.register("verifyInstalledIde") {
+    group = "verification"
+    description = "Runs the packaged-plugin installed GoLand interaction suite."
+    dependsOn(
+        verifyWrapperIntegrity,
+        verifyCompatibilityInputs,
+        integrationTest,
+    )
 }

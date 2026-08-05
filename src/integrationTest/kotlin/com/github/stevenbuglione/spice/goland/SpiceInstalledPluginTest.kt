@@ -65,9 +65,9 @@ class SpiceInstalledPluginTest {
                 "path.to.build.plugin must identify the packaged Spice archive"
             },
         )
-        val repository = Path.of(
-            requireNotNull(System.getProperty("spice.repository.root")) {
-                "spice.repository.root is required"
+        val petclinic = Path.of(
+            requireNotNull(System.getProperty("spice.petclinic.root")) {
+                "spice.petclinic.root is required"
             },
         )
         val installedGoLand = System.getProperty("spice.goland.path")
@@ -78,7 +78,7 @@ class SpiceInstalledPluginTest {
             },
         )
         assertTrue(Files.isRegularFile(spiceExecutable))
-        val fixture = repository.resolve("examples/petclinic")
+        val fixture = petclinic
         val projectOutput = Path.of(
             requireNotNull(System.getProperty("spice.installed.project.output")) {
                 "spice.installed.project.output is required"
@@ -90,13 +90,6 @@ class SpiceInstalledPluginTest {
             "petclinic-",
         )
         copyProject(fixture, project)
-        Files.writeString(
-            project.resolve("go.mod"),
-            Files.readString(fixture.resolve("go.mod")).replace(
-                "../..",
-                repository.toString().replace('\\', '/'),
-            ),
-        )
         val sourceFile = project.resolve("main.go")
         val sourceBefore = Files.readString(sourceFile)
         val screenshotDirectory = Path.of(
@@ -109,7 +102,11 @@ class SpiceInstalledPluginTest {
                 getInstaller = { ExistingIdeInstaller(installedGoLand) },
             )
         } else {
-            IdeInfo.GoLand.copy(buildNumber = "262.8665.336")
+            IdeInfo.GoLand.copy(
+                buildNumber = requireNotNull(
+                    System.getProperty("spice.goland.build"),
+                ),
+            )
         }
 
         Starter.newContext(
@@ -162,7 +159,6 @@ class SpiceInstalledPluginTest {
                 localRobot.keyPress(KeyEvent.VK_ESCAPE)
                 localRobot.keyRelease(KeyEvent.VK_ESCAPE)
                 resize(1280, 800)
-                ensureFocused()
                 codeEditor {
                     assertEquals(sourceBefore, text)
 
@@ -237,20 +233,12 @@ class SpiceInstalledPluginTest {
                     frame.saveAll()
                     awaitSourceContains(sourceFile, "// @")
 
-                    moveCaretToOffset(text.indexOf("// @\nfunc main"))
-                    driver.invokeAction("EditorDeleteLine")
-                    val blankLineMarker = "// @Logging\n\nfunc main"
-                    val blankLine = text.indexOf(blankLineMarker)
-                    assertTrue(blankLine >= 0)
-                    moveCaretToOffset(
-                        blankLine + "// @Logging\n".length,
-                    )
-                    driver.invokeAction("EditorDeleteLine")
-                    driver.invokeAction("ReformatCode")
-                    robot.waitForIdle()
-                    assertEquals(sourceBefore, text)
+                    driver.invokeAction("\$Undo")
+                    driver.invokeAction("\$Undo")
+                    awaitEditorEquals(this, sourceBefore)
                 }
                 frame.saveAll()
+                awaitSourceEquals(sourceFile, sourceBefore)
                 editorTabs {
                     closeTab("main.go")
                 }
@@ -491,8 +479,11 @@ class SpiceInstalledPluginTest {
         val pluginArchive = Path.of(
             requireNotNull(System.getProperty("path.to.build.plugin")),
         )
-        val repository = Path.of(
-            requireNotNull(System.getProperty("spice.repository.root")),
+        val plugin = Path.of(
+            requireNotNull(System.getProperty("spice.plugin.root")),
+        )
+        val core = Path.of(
+            requireNotNull(System.getProperty("spice.core.root")),
         )
         val installedGoLand = System.getProperty("spice.goland.path")
             ?.let(Path::of)
@@ -501,8 +492,8 @@ class SpiceInstalledPluginTest {
                 System.getProperty("spice.integration.executable"),
             ),
         )
-        val fixture = repository.resolve(
-            "editors/goland/src/integrationTest/resources/projects/concealment",
+        val fixture = plugin.resolve(
+            "src/integrationTest/resources/projects/concealment",
         )
         val projectOutput = Path.of(
             requireNotNull(
@@ -523,12 +514,12 @@ class SpiceInstalledPluginTest {
             fixture.resolve("payments/payments.go"),
             project.resolve("payments/payments.go"),
         )
-        Files.copy(repository.resolve("go.sum"), project.resolve("go.sum"))
+        Files.copy(core.resolve("go.sum"), project.resolve("go.sum"))
         Files.writeString(
             project.resolve("go.mod"),
             Files.readString(fixture.resolve("go.mod")).replace(
                 "../../../../../../..",
-                repository.toString().replace('\\', '/'),
+                core.toString().replace('\\', '/'),
             ),
         )
         val pinnedGoLand = if (installedGoLand != null) {
@@ -536,7 +527,11 @@ class SpiceInstalledPluginTest {
                 getInstaller = { ExistingIdeInstaller(installedGoLand) },
             )
         } else {
-            IdeInfo.GoLand.copy(buildNumber = "262.8665.336")
+            IdeInfo.GoLand.copy(
+                buildNumber = requireNotNull(
+                    System.getProperty("spice.goland.build"),
+                ),
+            )
         }
 
         Starter.newContext(
@@ -568,7 +563,6 @@ class SpiceInstalledPluginTest {
                     localRobot,
                 )
                 resize(1280, 800)
-                ensureFocused()
                 codeEditor {
                     awaitEditorContains(this, "type Processor interface")
                 }
@@ -1128,6 +1122,20 @@ class SpiceInstalledPluginTest {
         )
     }
 
+    private fun awaitEditorEquals(
+        editor: JEditorUiComponent,
+        expected: String,
+    ) {
+        val deadline = System.nanoTime() + 10_000_000_000L
+        while (System.nanoTime() < deadline) {
+            if (editor.text == expected) {
+                return
+            }
+            Thread.sleep(100)
+        }
+        assertEquals(expected, editor.text)
+    }
+
     private fun awaitEditorMatches(
         editor: JEditorUiComponent,
         expected: Regex,
@@ -1279,7 +1287,7 @@ class SpiceInstalledPluginTest {
             paths.forEach { path ->
                 val relative = source.relativize(path)
                 if (relative.nameCount > 0 &&
-                    relative.getName(0).toString() == "vendor"
+                    relative.getName(0).toString() == ".git"
                 ) {
                     return@forEach
                 }
@@ -1305,6 +1313,17 @@ class SpiceInstalledPluginTest {
             Files.readString(source).contains(expected),
             "saved source did not contain $expected within five seconds",
         )
+    }
+
+    private fun awaitSourceEquals(source: Path, expected: String) {
+        val deadline = System.nanoTime() + 5_000_000_000L
+        while (System.nanoTime() < deadline) {
+            if (Files.readString(source) == expected) {
+                return
+            }
+            Thread.sleep(50)
+        }
+        assertEquals(expected, Files.readString(source))
     }
 
     private fun assertNotBlank(image: BufferedImage) {

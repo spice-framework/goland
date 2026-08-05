@@ -1,0 +1,9 @@
+.gradle/
+.idea/
+.intellijPlatform/
+.kotlin/
+allure-results/
+/build/
+/buildSrc/build/
+dependencies/
+out/
