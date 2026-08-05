@@ -1,6 +1,6 @@
 package main
 
-// @import { Implements, Service } from "github.com/StevenBuglione/spice/annotation/core"
+// @import { Implements, Service } from "github.com/spice-framework/spice/annotation/core"
 
 // @Service
 // @Implements(payments.Pro)

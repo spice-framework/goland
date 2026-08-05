@@ -79,10 +79,10 @@ public final class SpiceEditorPresentationTest extends BasePlatformTestCase {
                     spiceapp "example.com/app/internal/spicegen/app"
                 )
 
-                // @import { Application } from "github.com/StevenBuglione/spice/annotation/core"
-                // @import * as management from "github.com/StevenBuglione/spice/annotation/management"
-                // @import * as data from "github.com/StevenBuglione/spice/annotation/data"
-                // @import * as event from "github.com/StevenBuglione/spice/annotation/event"
+                // @import { Application } from "github.com/spice-framework/spice/annotation/core"
+                // @import * as management from "github.com/spice-framework/spice/annotation/management"
+                // @import * as data from "github.com/spice-framework/spice/annotation/data"
+                // @import * as event from "github.com/spice-framework/spice/annotation/event"
 
                 // @Application
                 // @management.Enable(expose=["health", "metrics"])

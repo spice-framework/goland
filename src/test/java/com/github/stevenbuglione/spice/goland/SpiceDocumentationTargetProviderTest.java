@@ -57,7 +57,7 @@ public final class SpiceDocumentationTargetProviderTest
                 "Application defines",
                 "Declares the application root.",
                 "sdk.TargetFunction",
-                "github.com/StevenBuglione/spice/cmd/spice-annotation-core",
+                "github.com/spice-framework/spice/cmd/spice-annotation-core",
                 "ApplicationHandler",
                 "sdk.ProtocolV1Alpha2",
                 "application.go",

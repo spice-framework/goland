@@ -95,7 +95,7 @@ intellijPlatform {
         }
         vendor {
             name = "Spice contributors"
-            url = "https://github.com/StevenBuglione/spice"
+            url = "https://github.com/spice-framework/spice"
         }
     }
     pluginVerification {

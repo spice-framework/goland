@@ -4,8 +4,8 @@ go 1.26.0
 
 toolchain go1.26.5
 
-tool github.com/StevenBuglione/spice/cmd/spice-annotation-core
+tool github.com/spice-framework/spice/cmd/spice-annotation-core
 
-require github.com/StevenBuglione/spice v0.0.0
+require github.com/spice-framework/spice v0.0.0 // indirect
 
-replace github.com/StevenBuglione/spice => ../../../../../../..
+replace github.com/spice-framework/spice => ../../../../../../..

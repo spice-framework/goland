@@ -1,7 +1,7 @@
 package main
 
-// @import { Application } from "github.com/StevenBuglione/spice/annotation/core"
-// @import * as observability from "github.com/StevenBuglione/spice/annotation/observability"
+// @import { Application } from "github.com/spice-framework/spice/annotation/core"
+// @import * as observability from "github.com/spice-framework/spice/annotation/observability"
 
 // @Application
 // @observability.Logging

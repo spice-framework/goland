@@ -227,7 +227,7 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
                                 module example.com/application
 
                                 replace (
-                                    github.com/StevenBuglione/spice v0.1.0 => ../spice
+                                    github.com/spice-framework/spice v0.1.0 => ../spice
                                     example.com/acme/plugin => D:/work/plugin
                                 )
                                 """
@@ -236,7 +236,7 @@ public final class SpiceAnnotationReferenceTest extends BasePlatformTestCase {
         assertEquals(
                 List.of(
                         new SpiceAnnotationIndex.LocalReplacement(
-                                "github.com/StevenBuglione/spice",
+                                "github.com/spice-framework/spice",
                                 "../spice"
                         ),
                         new SpiceAnnotationIndex.LocalReplacement(

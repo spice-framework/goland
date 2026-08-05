@@ -281,7 +281,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
         SpiceApplicationConfiguration configuration = configuration();
         configuration.setKind(GoBuildingRunConfiguration.Kind.PACKAGE);
         configuration.setPackage(
-                "github.com/StevenBuglione/spice/examples/petclinic"
+                "github.com/spice-framework/spice/examples/petclinic"
         );
         configuration.setWorkingDirectory(petclinic.toString());
         configuration.setSpiceTarget("Petclinic");
