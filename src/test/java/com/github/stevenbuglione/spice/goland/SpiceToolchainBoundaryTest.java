@@ -42,7 +42,7 @@ public final class SpiceToolchainBoundaryTest {
         ));
         assertTrue(fixture.contains(
                 "github.com/spice-framework/toolchain "
-                        + "v0.0.0-20260805222344-fd87027fc195"
+                        + "v0.0.0-20260805230546-150f8ae62c13"
         ));
         assertTrue(fixture.contains(
                 "replace github.com/spice-framework/spice => "

@@ -30,7 +30,7 @@ review is recorded in [`docs/dependency-review.md`](docs/dependency-review.md).
 
 The current public module pair is core
 `v0.0.0-20260805222830-a2ecd56df246` and toolchain
-`v0.0.0-20260805222344-fd87027fc195`. The installed-IDE fixture declares those
+`v0.0.0-20260805230546-150f8ae62c13`. The installed-IDE fixture declares those
 versions and replaces them only with the corresponding compatibility checkouts
 for deterministic, offline UI verification. Those test-only replacements are
 never written to an application or shipped as plugin configuration.
