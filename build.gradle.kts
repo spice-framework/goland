@@ -1,3 +1,4 @@
+import org.gradle.api.artifacts.dsl.LockMode
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -44,7 +45,7 @@ dependencies {
         if (localGoLandPath.isPresent) {
             local(localGoLandPath.get())
         } else {
-            goland("2026.2")
+            goland("2026.2.0.1")
         }
         bundledPlugin("org.jetbrains.plugins.go")
         pluginVerifier("1.409")
@@ -84,6 +85,19 @@ kotlin {
 
 dependencyLocking {
     lockAllConfigurations()
+    lockMode = LockMode.STRICT
+    // The IntelliJ Platform plugin represents the pinned GoLand distribution
+    // as localIde:GO for installed-IDE verification and go:goland for the
+    // downloadable CI distribution. Keep both resolution graphs strictly
+    // locked without making either environment's coordinate authoritative for
+    // the other.
+    lockFile = file(
+        if (localGoLandPath.isPresent) {
+            "gradle-installed-goland.lockfile"
+        } else {
+            "gradle.lockfile"
+        }
+    )
 }
 
 intellijPlatform {
