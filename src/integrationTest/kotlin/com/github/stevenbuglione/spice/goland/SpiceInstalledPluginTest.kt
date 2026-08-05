@@ -90,6 +90,7 @@ class SpiceInstalledPluginTest {
             "petclinic-",
         )
         copyProject(fixture, project)
+        val goRoot = configureGoRoot(project)
         val sourceFile = project.resolve("main.go")
         val sourceBefore = Files.readString(sourceFile)
         val screenshotDirectory = Path.of(
@@ -130,6 +131,9 @@ class SpiceInstalledPluginTest {
                     "SPICE_PETCLINIC_ADDRESS",
                     "127.0.0.1:0",
                 )
+                withEnv("GOROOT", goRoot.toString())
+                addSystemProperty("sun.java2d.uiScale", "1.0")
+                addSystemProperty("ide.ui.scale", "1.0")
             }
         }.runIdeWithDriver().useDriverAndCloseIde {
             waitForIndicators(3.minutes)
@@ -262,7 +266,7 @@ class SpiceInstalledPluginTest {
                     )
                     assertFalse(
                         highlightReport.lineSequence().any {
-                            it.startsWith("ERROR:")
+                            it.startsWith("ERROR(")
                         },
                         "installed editor contains error highlights:\n"
                             + highlightReport,
@@ -413,6 +417,8 @@ class SpiceInstalledPluginTest {
                     )
                     driver.invokeAction("HideActiveWindow")
                     localRobot.waitForIdle()
+                    driver.invokeAction("HideAllWindows")
+                    localRobot.waitForIdle()
 
                     val light = captureMatchingTheme(
                         localRobot,
@@ -522,6 +528,7 @@ class SpiceInstalledPluginTest {
                 core.toString().replace('\\', '/'),
             ),
         )
+        val goRoot = configureGoRoot(project)
         val pinnedGoLand = if (installedGoLand != null) {
             IdeInfo.GoLand.copy(
                 getInstaller = { ExistingIdeInstaller(installedGoLand) },
@@ -550,6 +557,9 @@ class SpiceInstalledPluginTest {
                     "SPICE_EXECUTABLE",
                     spiceExecutable.toString(),
                 )
+                withEnv("GOROOT", goRoot.toString())
+                addSystemProperty("sun.java2d.uiScale", "1.0")
+                addSystemProperty("ide.ui.scale", "1.0")
             }
         }.runIdeWithDriver().useDriverAndCloseIde {
             waitForIndicators(3.minutes)
@@ -1300,6 +1310,55 @@ class SpiceInstalledPluginTest {
             }
         }
     }
+
+    private fun configureGoRoot(project: Path): Path {
+        val process = ProcessBuilder("go", "env", "GOROOT")
+            .redirectErrorStream(true)
+            .start()
+        val finished = process.waitFor(30, TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
+        }
+        assertTrue(finished, "go env GOROOT did not finish within 30 seconds")
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+            .trim()
+        assertEquals(0, process.exitValue(), "go env GOROOT: $output")
+
+        val goRoot = Path.of(output).toAbsolutePath().normalize()
+        assertTrue(Files.isDirectory(goRoot), "Go root does not exist: $goRoot")
+        val executable = if (System.getProperty("os.name").contains(
+                "windows",
+                ignoreCase = true,
+            )
+        ) {
+            goRoot.resolve("bin/go.exe")
+        } else {
+            goRoot.resolve("bin/go")
+        }
+        assertTrue(
+            Files.isRegularFile(executable),
+            "Go root has no executable: $executable",
+        )
+
+        val url = "file://" + goRoot.toString().replace('\\', '/')
+        val idea = project.resolve(".idea")
+        Files.createDirectories(idea)
+        Files.writeString(
+            idea.resolve("workspace.xml"),
+            """<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GOROOT" url="${xmlAttribute(url)}" />
+</project>
+""",
+        )
+        return goRoot
+    }
+
+    private fun xmlAttribute(value: String): String = value
+        .replace("&", "&amp;")
+        .replace("\"", "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
 
     private fun awaitSourceContains(source: Path, expected: String) {
         val deadline = System.nanoTime() + 5_000_000_000L
