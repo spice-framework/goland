@@ -5,6 +5,7 @@ import com.sun.jna.platform.win32.Kernel32
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef.DWORD
 import com.sun.jna.platform.win32.WinDef.HWND
+import com.sun.jna.platform.win32.WinDef.RECT
 import com.sun.jna.platform.win32.WinUser.SW_RESTORE
 import com.intellij.driver.sdk.openFile
 import com.intellij.driver.sdk.closeAndDisableAllBalloonNotifications
@@ -782,6 +783,14 @@ class SpiceInstalledPluginTest {
                 }
                 Thread.sleep(100)
             }
+            clickIdeTitleBar(target, robot)
+            repeat(20) {
+                if (User32.INSTANCE.GetForegroundWindow() == target) {
+                    return
+                }
+                User32.INSTANCE.SetForegroundWindow(target)
+                Thread.sleep(100)
+            }
         } finally {
             attachedThreads.asReversed().forEach { thread ->
                 check(
@@ -800,6 +809,21 @@ class SpiceInstalledPluginTest {
             "installed GoLand window for $projectName did not become "
                 + "the foreground window",
         )
+    }
+
+    private fun clickIdeTitleBar(target: HWND, robot: Robot) {
+        val bounds = RECT()
+        check(User32.INSTANCE.GetWindowRect(target, bounds)) {
+            "cannot resolve the installed GoLand window bounds"
+        }
+        val width = bounds.right - bounds.left
+        check(width > 0 && bounds.bottom > bounds.top) {
+            "installed GoLand window has invalid bounds $bounds"
+        }
+        robot.mouseMove(bounds.left + width / 2, bounds.top + 12)
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
+        robot.delay(250)
     }
 
     private fun exerciseInstalledRunAndDebug(
