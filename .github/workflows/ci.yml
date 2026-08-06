@@ -163,6 +163,8 @@ jobs:
             build/reports/visual/**
             build/reports/tests/integrationTest/**
             build/test-results/integrationTest/**
+            out/ide-tests/tests/**/log/idea.log
+            out/ide-tests/tests/**/log/screenshots/**
           if-no-files-found: warn
 
   required:

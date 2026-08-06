@@ -28,6 +28,7 @@ import com.intellij.driver.sdk.ui.components.elements.popupMenu
 import com.intellij.driver.sdk.ui.components.go.goRunToolWindow
 import com.intellij.driver.sdk.ui.ui
 import com.intellij.driver.sdk.waitForIndicators
+import com.intellij.driver.sdk.waitForProjectOpen
 import com.intellij.driver.model.LockSemantics
 import com.intellij.driver.model.OnDispatcher
 import com.intellij.ide.starter.driver.engine.runIdeWithDriver
@@ -136,14 +137,22 @@ class SpiceInstalledPluginTest {
                 addSystemProperty("ide.ui.scale", "1.0")
             }
         }.runIdeWithDriver().useDriverAndCloseIde {
-            waitForIndicators(3.minutes)
+            // A project-open handle is the only global prerequisite here.
+            // Waiting for every status-bar indicator before opening an editor
+            // is both stronger than the workflow requires and unreliable while
+            // GoLand is still constructing the first Windows project frame.
+            waitForProjectOpen(3.minutes)
             openFile(
                 "internal/spicegen/petclinic/sources/_root/"
                     + "main_spice_gen.go",
+                waitForCodeAnalysis = false,
             )
-            waitForIndicators(1.minutes)
             ideFrame {
+                editorTabs {
+                    clickTab("main_spice_gen.go")
+                }
                 codeEditor {
+                    awaitEditorContains(this, "const ApplicationTarget")
                     assertTrue(
                         text.contains("const ApplicationTarget"),
                         "Petclinic's source-mapped generated entrypoint is missing",
