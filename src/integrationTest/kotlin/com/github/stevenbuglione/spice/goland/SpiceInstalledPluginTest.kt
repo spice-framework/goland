@@ -160,7 +160,6 @@ class SpiceInstalledPluginTest {
                 }
             }
             openFile("main.go")
-            waitForIndicators(1.minutes)
             closeAndDisableAllBalloonNotifications()
             ideFrame {
                 val frame: IdeaFrameUI = this
@@ -309,36 +308,22 @@ class SpiceInstalledPluginTest {
                     localRobot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
                     localRobot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
                     localRobot.waitForIdle()
-                    driver.invokeAction("QuickJavaDoc")
-                    Thread.sleep(2_000)
-                    val documentationPanes:
-                        List<DocumentationHintEditorPaneUi> = frame.xx(
-                        DocumentationHintEditorPaneUi::class.java,
-                    ) {
-                        byClass("DocumentationHintEditorPane")
-                    }.list()
-                    val documentation = documentationPanes
-                        .map(DocumentationHintEditorPaneUi::getText)
-                        .firstOrNull { it.contains("Application marks") }
-                    assertTrue(
-                        documentation != null,
-                        "Quick Documentation must render descriptor GoDoc; "
-                            + "actual panes: ${
-                                documentationPanes.map(
-                                    DocumentationHintEditorPaneUi::getText,
-                                )
-                            }",
-                    )
-                    listOf(
+                    val documentationSections = listOf(
                         "Descriptor",
                         "Targets",
                         "Tool",
                         "Handler",
                         "Protocol",
                         "ApplicationHandler",
-                    ).forEach { section ->
+                    )
+                    val documentation = awaitQuickDocumentation(
+                        frame,
+                        localRobot,
+                        listOf("Application marks") + documentationSections,
+                    )
+                    documentationSections.forEach { section ->
                         assertTrue(
-                            documentation!!.contains(section),
+                            documentation.contains(section),
                             "Quick Documentation is missing $section",
                         )
                     }
@@ -392,7 +377,6 @@ class SpiceInstalledPluginTest {
                     driver.invokeAction("Back")
                     localRobot.waitForIdle()
                     openFile("main.go")
-                    waitForIndicators(1.minutes)
                     awaitEditorContains(this, "// @Application")
 
                     driver.invokeAction("ActivateSpiceToolWindow")
@@ -1198,6 +1182,38 @@ class SpiceInstalledPluginTest {
             changed >= 3,
             "modifier-hover must visibly underline the exact annotation range; " +
                 "changedPixels=$changed",
+        )
+    }
+
+    private fun awaitQuickDocumentation(
+        frame: IdeaFrameUI,
+        robot: Robot,
+        expected: List<String>,
+    ): String {
+        val deadline = System.nanoTime() + 120_000_000_000L
+        var attempts = 0
+        var rendered = emptyList<String>()
+        while (System.nanoTime() < deadline) {
+            attempts++
+            frame.driver.invokeAction("QuickJavaDoc")
+            Thread.sleep(1_000)
+            rendered = frame.xx(
+                DocumentationHintEditorPaneUi::class.java,
+            ) {
+                byClass("DocumentationHintEditorPane")
+            }.list().map(DocumentationHintEditorPaneUi::getText)
+            rendered.firstOrNull { pane ->
+                expected.all(pane::contains)
+            }?.let { return it }
+
+            robot.keyPress(KeyEvent.VK_ESCAPE)
+            robot.keyRelease(KeyEvent.VK_ESCAPE)
+            robot.waitForIdle()
+            Thread.sleep(250)
+        }
+        throw AssertionError(
+            "Quick Documentation did not render $expected after "
+                + "$attempts attempts; actual panes: $rendered",
         )
     }
 
