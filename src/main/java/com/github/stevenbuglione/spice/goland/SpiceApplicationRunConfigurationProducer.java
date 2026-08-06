@@ -154,7 +154,7 @@ public final class SpiceApplicationRunConfigurationProducer
         )) {
             SpiceAnnotationSyntax.Match annotation =
                     SpiceAnnotationSyntax.parse(comment.getText()).orElse(null);
-            if (annotation == null || !"Application".equals(annotation.name())) {
+            if (annotation == null || !isApplicationMarker(file, annotation)) {
                 continue;
             }
             PsiElement declaration =
@@ -165,6 +165,19 @@ public final class SpiceApplicationRunConfigurationProducer
             }
         }
         return null;
+    }
+
+    private static boolean isApplicationMarker(
+            GoFile file,
+            SpiceAnnotationSyntax.Match annotation
+    ) {
+        SpiceAnnotationIndex.DescriptorSymbol descriptor =
+                SpiceAnnotationIndex.resolveImport(
+                        file.getText(),
+                        annotation.name()
+                );
+        return descriptor != null
+                && "Application".equals(descriptor.symbol());
     }
 
     private record ApplicationContext(GoFile file, PsiComment marker) {}

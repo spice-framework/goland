@@ -9,7 +9,8 @@ Go source while making declaration comments feel like native annotations:
 - modifier-hover underlining, navigation, Go to Implementation, rich
   documentation, parameter information, and completion;
 - shared compiler/LSP diagnostics and safe, version-checked edits;
-- complete-package Spice Run and native Go/Delve Debug behavior;
+- complete-package Spice Run and native Go/Delve Debug behavior resolved from
+  explicit named, aliased, or namespace `@import` bindings;
 - an actionable offline-safe plugin health view.
 
 The plugin never makes naked `@` source valid, performs dependency injection,

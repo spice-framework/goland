@@ -39,6 +39,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
                     spiceapp "example.com/app/internal/spicegen/app"
                 )
 
+                // @import { Application } from "example.com/sdk/core"
                 // @Application
                 // @management.Enable(expose=["health"])
                 func main() {
@@ -46,7 +47,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
                 }
                 """;
         myFixture.configureByText("main.go", source);
-        PsiComment marker = applicationMarker();
+        PsiComment marker = annotationMarker("// @Application");
 
         SpiceApplicationConfiguration configuration = configuration();
         Ref<PsiElement> sourceElement = new Ref<>();
@@ -109,6 +110,7 @@ public final class SpiceApplicationRunConfigurationProducerTest
                 """
                         package main
 
+                        // @import { Application } from "example.com/sdk/core"
                         // @Application
                         func main() {}
                         """
@@ -146,13 +148,14 @@ public final class SpiceApplicationRunConfigurationProducerTest
                 """
                         package main
 
+                        // @import { Application } from "example.com/sdk/core"
                         // @Application
                         func helper() {}
 
                         func main() {}
                         """
         );
-        PsiComment marker = applicationMarker();
+        PsiComment marker = annotationMarker("// @Application");
         SpiceApplicationConfiguration configuration = configuration();
 
         assertFalse(new SpiceApplicationRunConfigurationProducer()
@@ -161,6 +164,61 @@ public final class SpiceApplicationRunConfigurationProducerTest
                         new ConfigurationContext(marker),
                         new Ref<>()
                 ));
+    }
+
+    public void testResolvesNamedAliasAndNamespaceApplicationImports() {
+        assertConfiguresApplication(
+                """
+                        package main
+
+                        // @import { Application as App } from "example.com/sdk/core"
+                        // @App
+                        func main() {}
+                        """,
+                "// @App"
+        );
+        assertConfiguresApplication(
+                """
+                        package main
+
+                        // @import * as core from "example.com/sdk/core"
+                        // @core.Application
+                        func main() {}
+                        """,
+                "// @core.Application"
+        );
+    }
+
+    public void testRejectsUnimportedAndNonApplicationAliases() {
+        assertDoesNotConfigureApplication(
+                """
+                        package main
+
+                        // @Application
+                        func main() {}
+                        """,
+                "// @Application"
+        );
+        assertDoesNotConfigureApplication(
+                """
+                        package main
+
+                        // @import { Controller as App } from "example.com/sdk/web"
+                        // @App
+                        func main() {}
+                """,
+                "// @App"
+        );
+        assertDoesNotConfigureApplication(
+                """
+                        package main
+
+                        // @import * as web from "example.com/sdk/web"
+                        // @web.Controller
+                        func main() {}
+                        """,
+                "// @web.Controller"
+        );
     }
 
     public void testRejectsOrdinaryMainWithoutApplicationMarker() {
@@ -395,11 +453,43 @@ public final class SpiceApplicationRunConfigurationProducerTest
                 .contains("windows");
     }
 
-    private PsiComment applicationMarker() {
-        PsiComment marker = PsiTreeUtil.findChildOfType(
+    private void assertConfiguresApplication(String source, String markerText) {
+        myFixture.configureByText("main.go", source);
+        PsiComment marker = annotationMarker(markerText);
+        Ref<PsiElement> sourceElement = new Ref<>();
+
+        assertTrue(new SpiceApplicationRunConfigurationProducer()
+                .setupConfigurationFromContext(
+                        configuration(),
+                        new ConfigurationContext(marker),
+                        sourceElement
+                ));
+        assertEquals(marker, sourceElement.get());
+        assertEquals(source, myFixture.getEditor().getDocument().getText());
+    }
+
+    private void assertDoesNotConfigureApplication(
+            String source,
+            String markerText
+    ) {
+        myFixture.configureByText("main.go", source);
+        PsiComment marker = annotationMarker(markerText);
+
+        assertFalse(new SpiceApplicationRunConfigurationProducer()
+                .setupConfigurationFromContext(
+                        configuration(),
+                        new ConfigurationContext(marker),
+                        new Ref<>()
+                ));
+        assertEquals(source, myFixture.getEditor().getDocument().getText());
+    }
+
+    private PsiComment annotationMarker(String text) {
+        PsiComment marker = PsiTreeUtil.findChildrenOfType(
                 myFixture.getFile(),
                 PsiComment.class
-        );
+        ).stream().filter(comment -> text.equals(comment.getText()))
+                .findFirst().orElse(null);
         assertNotNull(marker);
         return marker;
     }
