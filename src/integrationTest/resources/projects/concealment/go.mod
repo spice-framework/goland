@@ -10,6 +10,6 @@ tool (
 )
 
 require (
-	github.com/spice-framework/spice v0.0.0-20260805222830-a2ecd56df246
-	github.com/spice-framework/toolchain v0.0.0-20260805230546-150f8ae62c13
+	github.com/spice-framework/spice v0.0.0-20260806030852-fde9cc3f18e2
+	github.com/spice-framework/toolchain v0.0.0-20260806030852-b348e03d419d
 )

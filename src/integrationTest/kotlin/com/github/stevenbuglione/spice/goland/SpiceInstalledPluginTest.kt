@@ -355,6 +355,7 @@ class SpiceInstalledPluginTest {
                         this,
                         applicationAt,
                         "@Application".length,
+                        screenshotDirectory,
                     )
 
                     val clickPoint = driver.withContext(
@@ -1070,6 +1071,7 @@ class SpiceInstalledPluginTest {
         editor: JEditorUiComponent,
         offset: Int,
         length: Int,
+        screenshotDirectory: Path,
     ) {
         val start = editor.driver.withContext(
             OnDispatcher.EDT,
@@ -1088,21 +1090,112 @@ class SpiceInstalledPluginTest {
             location.x + start.x,
             location.y + start.y,
             (end.x - start.x).coerceAtLeast(12),
-            24,
+            editor.driver.withContext(
+                OnDispatcher.EDT,
+                LockSemantics.NO_LOCK,
+            ) {
+                editor.editor.getLineHeight()
+            },
         )
         robot.mouseMove(location.x + editor.component.width - 20, location.y + 20)
         robot.waitForIdle()
+        Thread.sleep(250)
         val before = robot.createScreenCapture(bounds)
+        val targetX = location.x + start.x +
+            (end.x - start.x).coerceAtLeast(2) / 2
+        val targetY = location.y + start.y + bounds.height / 2
+        var during = before
+        var changed = 0
+        var semanticUnderline = false
+        var attempts = 0
+        val hoverStarted = System.nanoTime()
+        val deadline = System.nanoTime() + 5_000_000_000L
         robot.keyPress(KeyEvent.VK_CONTROL)
-        robot.mouseMove(
-            location.x + start.x + (end.x - start.x).coerceAtLeast(2) / 2,
-            location.y + start.y + 8,
-        )
-        Thread.sleep(500)
-        val during = robot.createScreenCapture(bounds)
-        robot.keyRelease(KeyEvent.VK_CONTROL)
-        robot.waitForIdle()
+        try {
+            // Windows needs a modifier-aware mouse-move event after Ctrl is down.
+            // A single jump can be coalesced before GoLand's CtrlMouseHandler sees it.
+            robot.mouseMove(targetX - 2, targetY)
+            robot.mouseMove(targetX, targetY)
+            while (System.nanoTime() < deadline) {
+                attempts++
+                Thread.sleep(100)
+                val candidate = robot.createScreenCapture(bounds)
+                val candidateChanged = changedPixelCount(before, candidate)
+                if (candidateChanged > changed) {
+                    during = candidate
+                    changed = candidateChanged
+                }
+                semanticUnderline = semanticUnderline || editor.driver.withContext(
+                    OnDispatcher.EDT,
+                    LockSemantics.NO_LOCK,
+                ) {
+                    editor.editor.getMarkupModel().getAllHighlighters().any {
+                        val effect = it.getTextAttributes()
+                            ?.getEffectType()
+                            ?.toString()
+                        it.getStartOffset() <= offset &&
+                            it.getEndOffset() >= offset + length &&
+                            (
+                                effect == "LINE_UNDERSCORE" ||
+                                    effect == "BOLD_LINE_UNDERSCORE"
+                            )
+                    }
+                }
+                if (semanticUnderline && changed >= 3) {
+                    break
+                }
 
+                // Keep the pointer inside the reference while forcing a fresh
+                // modifier-aware event if the first event was coalesced.
+                robot.mouseMove(targetX + 1, targetY)
+                robot.mouseMove(targetX, targetY)
+            }
+        } finally {
+            robot.keyRelease(KeyEvent.VK_CONTROL)
+            robot.mouseMove(
+                location.x + editor.component.width - 20,
+                location.y + 20,
+            )
+            robot.waitForIdle()
+        }
+
+        ImageIO.write(
+            before,
+            "png",
+            screenshotDirectory.resolve("spice-modifier-hover-before.png").toFile(),
+        )
+        ImageIO.write(
+            during,
+            "png",
+            screenshotDirectory.resolve("spice-modifier-hover-during.png").toFile(),
+        )
+        Files.writeString(
+            screenshotDirectory.resolve("spice-modifier-hover.txt"),
+            "offset=$offset\n" +
+                "length=$length\n" +
+                "bounds=$bounds\n" +
+                "semanticUnderline=$semanticUnderline\n" +
+                "attempts=$attempts\n" +
+                "elapsedMillis=${(System.nanoTime() - hoverStarted) / 1_000_000}\n" +
+                "changedPixels=$changed\n",
+        )
+
+        assertTrue(
+            semanticUnderline,
+            "modifier-hover must install an exact underline highlighter for " +
+                "the annotation range",
+        )
+        assertTrue(
+            changed >= 3,
+            "modifier-hover must visibly underline the exact annotation range; " +
+                "changedPixels=$changed",
+        )
+    }
+
+    private fun changedPixelCount(
+        before: BufferedImage,
+        during: BufferedImage,
+    ): Int {
         var changed = 0
         for (y in 0 until before.height) {
             for (x in 0 until before.width) {
@@ -1111,10 +1204,7 @@ class SpiceInstalledPluginTest {
                 }
             }
         }
-        assertTrue(
-            changed >= 3,
-            "modifier-hover must visibly underline the exact annotation range",
-        )
+        return changed
     }
 
     private fun awaitEditorContains(
