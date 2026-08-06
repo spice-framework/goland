@@ -524,17 +524,11 @@ class SpiceInstalledPluginTest {
             project.resolve("payments/payments.go"),
         )
         Files.copy(toolchain.resolve("go.sum"), project.resolve("go.sum"))
-        Files.writeString(
+        SpiceFixtureGoMod.materialize(
+            fixture.resolve("go.mod"),
             project.resolve("go.mod"),
-            Files.readString(fixture.resolve("go.mod"))
-                .replace(
-                    "__SPICE_CORE_ROOT__",
-                    core.toString().replace('\\', '/'),
-                )
-                .replace(
-                    "__SPICE_TOOLCHAIN_ROOT__",
-                    toolchain.toString().replace('\\', '/'),
-                ),
+            core,
+            toolchain,
         )
         val goRoot = configureGoRoot(project)
         val pinnedGoLand = if (installedGoLand != null) {

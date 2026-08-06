@@ -114,6 +114,7 @@ dependencies {
         )
     }
     testImplementation("junit:junit:4.13.2")
+    integrationTestImplementation(sourceSets.test.get().output)
     integrationTestImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
     integrationTestImplementation("org.kodein.di:kodein-di-jvm:7.26.1")
     integrationTestImplementation("org.jetbrains.kotlin:kotlin-stdlib:2.4.10")

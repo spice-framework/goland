@@ -13,7 +13,3 @@ require (
 	github.com/spice-framework/spice v0.0.0-20260805222830-a2ecd56df246
 	github.com/spice-framework/toolchain v0.0.0-20260805230546-150f8ae62c13
 )
-
-replace github.com/spice-framework/spice => __SPICE_CORE_ROOT__
-
-replace github.com/spice-framework/toolchain => __SPICE_TOOLCHAIN_ROOT__
