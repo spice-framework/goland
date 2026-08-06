@@ -120,7 +120,7 @@ dependencies {
     integrationTestImplementation("org.jetbrains.kotlin:kotlin-stdlib:2.4.10")
     integrationTestImplementation("net.java.dev.jna:jna-platform:5.17.0")
     integrationTestImplementation(
-        "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2"
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.11.0"
     )
     add(
         integrationTestSourceSet.runtimeOnlyConfigurationName,
