@@ -261,10 +261,7 @@ class SpiceInstalledPluginTest {
                     moveCaretToOffset(0)
                     robot.waitForIdle()
 
-                    val highlightReport = getAllHighlights()
-                        .joinToString("\n") {
-                            "${it.getSeverity()}: ${it.getDescription()}"
-                        }
+                    val highlightReport = awaitNoErrorHighlights(this)
                     Files.createDirectories(screenshotDirectory)
                     Files.writeString(
                         screenshotDirectory.resolve(
@@ -1214,6 +1211,24 @@ class SpiceInstalledPluginTest {
         throw AssertionError(
             "Quick Documentation did not render $expected after "
                 + "$attempts attempts; actual panes: $rendered",
+        )
+    }
+
+    private fun awaitNoErrorHighlights(editor: JEditorUiComponent): String {
+        val deadline = System.nanoTime() + 120_000_000_000L
+        var report = ""
+        while (System.nanoTime() < deadline) {
+            report = editor.getAllHighlights().joinToString("\n") {
+                "${it.getSeverity()}: ${it.getDescription()}"
+            }
+            if (report.lineSequence().none { it.startsWith("ERROR(") }) {
+                return report
+            }
+            Thread.sleep(500)
+        }
+        throw AssertionError(
+            "installed editor retained error highlights after two minutes:\n"
+                + report,
         )
     }
 
