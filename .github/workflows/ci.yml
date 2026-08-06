@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Check out plugin
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - name: Check out exact compatibility inputs
         shell: pwsh
         run: |
@@ -103,6 +105,8 @@ jobs:
     steps:
       - name: Check out plugin
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - name: Check out exact compatibility inputs
         shell: pwsh
         run: |
@@ -160,3 +164,17 @@ jobs:
             build/reports/tests/integrationTest/**
             build/test-results/integrationTest/**
           if-no-files-found: warn
+
+  required:
+    name: Required CI
+    if: always()
+    needs: [verify, installed-ui]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful verification and installed UI
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          INSTALLED_UI_RESULT: ${{ needs['installed-ui'].result }}
+        run: |
+          test "$VERIFY_RESULT" = "success"
+          test "$INSTALLED_UI_RESULT" = "success"
