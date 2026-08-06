@@ -79,6 +79,25 @@ through **Settings | Plugins | Install Plugin from Disk**. The application must
 provide its own compatible `spice` executable; the plugin never downloads one
 silently.
 
+## Authenticated releases
+
+Immutable `vMAJOR.MINOR.PATCH` tags build the same verified plugin ZIP on Linux
+and Windows, normalize ZIP/JAR metadata, and require byte-identical results.
+The release contains the installable ZIP, an SPDX 2.3 SBOM, in-toto/SLSA
+provenance, canonical SHA-256 checksums, the emitted Ed25519 public key, and a
+detached signature of the exact checksum bytes. Verify against the reviewed
+repository anchor at
+[`security/release/ed25519-public.pem`](security/release/ed25519-public.pem),
+whose DER SHA-256 fingerprint is
+`4633e35fe23310edaa766d32c43e5b26303bf9c6a4d1cc433b1ff8e35ec3512f`.
+
+The private key is available only to the protected `release-signing`
+environment. A separate no-secret job verifies signature, structure,
+provenance, SBOM, checksums, and cross-platform reproducibility before the
+protected `release-publish` job receives the workflow's sole write permission.
+See [`docs/releasing.md`](docs/releasing.md) for the artifact and operator
+contract.
+
 ## Source boundary
 
 The Java package name and plugin ID remain stable for upgrade compatibility.

@@ -314,6 +314,15 @@ val verifyCompatibilityInputs = tasks.register<VerifyCompatibilityInputs>(
     petclinicCommit.set(compatibilityValue("petclinicCommit"))
 }
 
+val verifyReleaseTools = tasks.register<Exec>("verifyReleaseTools") {
+    group = "verification"
+    description = "Tests the standard-library-only signed release boundary."
+    workingDir(layout.projectDirectory)
+    commandLine("go", "-C", "release-tools", "test", "./...")
+    environment("GOTOOLCHAIN", "local")
+    environment("GOWORK", "off")
+}
+
 tasks.named("check") {
     dependsOn(verifyWrapperIntegrity, verifyCompatibilityInputs)
 }
@@ -324,6 +333,7 @@ tasks.register("verifyRepository") {
     dependsOn(
         verifyWrapperIntegrity,
         verifyCompatibilityInputs,
+        verifyReleaseTools,
         "test",
         "buildPlugin",
         "verifyPluginProjectConfiguration",

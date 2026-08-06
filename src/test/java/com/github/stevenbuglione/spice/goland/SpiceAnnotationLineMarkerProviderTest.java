@@ -50,6 +50,9 @@ public final class SpiceAnnotationLineMarkerProviderTest
                         func main() {}
                         """
         );
+        // Descriptor resolution uses Go's stub index. Complete the fixture's
+        // indexing pass before invoking the line-marker provider directly.
+        myFixture.doHighlighting();
         PsiComment invocation = annotationComment("@App");
         assertNotNull(invocation);
 

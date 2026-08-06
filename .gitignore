@@ -6,4 +6,5 @@ allure-results/
 /build/
 /buildSrc/build/
 dependencies/
+/dist-*/
 out/

@@ -38,3 +38,12 @@ change to presentation, navigation, completion edits, Run/Debug, or the LSP
 lifecycle must also pass `gradlew verifyInstalledIde` on Windows and Linux.
 Commit only green trees, fetch immediately before push, and stop if
 `origin/main` moved unexpectedly.
+
+Release tags are a separate protected operation. The repository-owned release
+workflow must retain an uncredentialed source/package gate, a `release-signing`
+approval boundary with the only signing-secret reference, an independent
+Windows rebuild and public-key verifier, and a `release-publish` approval
+boundary containing the only `contents: write` permission. Never move or
+delete a release tag. The solo-maintainer environments necessarily permit the
+same maintainer to approve after inspecting predecessor jobs; they do not
+pretend to provide two-person review.

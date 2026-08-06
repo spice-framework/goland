@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "repository": "spice-framework/goland",
+  "artifactBase": "spice-goland",
+  "displayName": "Spice GoLand Plugin",
+  "kind": "goland",
+  "pluginID": "com.github.stevenbuglione.spice",
+  "versionFile": "compatibility.properties",
+  "versionKey": "pluginVersion"
+}
