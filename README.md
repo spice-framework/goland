@@ -1,5 +1,7 @@
 # Spice for GoLand
 
+Unified documentation: [spiceframework.dev/tools/goland](https://spiceframework.dev/tools/goland/).
+
 This repository owns the primary native GoLand integration for the
 [Spice Framework](https://github.com/spice-framework/spice). It preserves valid
 Go source while making declaration comments feel like native annotations:
