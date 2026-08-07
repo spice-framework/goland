@@ -45,12 +45,12 @@ public final class SpiceToolchainBoundaryTest {
         ));
         assertTrue(fixture.contains(
                 "github.com/spice-framework/spice "
-                        + "v0.0.0-20260806030852-fde9cc3f18e2"
+                        + "v0.1.0-preview.1.0.20260807050649-46ba4660cfb0"
         ));
-		assertTrue(fixture.contains(
-				"github.com/spice-framework/toolchain "
-						+ "v0.0.0-20260806030852-b348e03d419d"
-		));
+        assertTrue(fixture.contains(
+                "github.com/spice-framework/toolchain "
+                        + "v0.1.0-preview.1.0.20260807044408-6598abca8196"
+        ));
         assertFalse(fixture.contains("replace "));
         assertFalse(fixture.contains("__SPICE_"));
 

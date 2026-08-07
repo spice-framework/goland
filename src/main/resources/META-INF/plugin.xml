@@ -14,6 +14,10 @@
   <depends>org.jetbrains.plugins.go</depends>
 
   <extensions defaultExtensionNs="com.intellij">
+    <lang.psiStructureViewFactory
+        language="go"
+        implementationClass="com.github.stevenbuglione.spice.goland.SpiceStructureViewFactory"
+        order="first"/>
     <lang.foldingBuilder
         language="go"
         implementationClass="com.github.stevenbuglione.spice.goland.SpiceFoldingBuilder"
@@ -67,6 +71,38 @@
         id="Spice"
         anchor="right"
         factoryClass="com.github.stevenbuglione.spice.goland.SpiceHealthToolWindowFactory"/>
+    <intentionAction>
+      <className>com.github.stevenbuglione.spice.goland.SpiceClassIntentions$GenerateConstructor</className>
+      <category>Spice</category>
+    </intentionAction>
+    <intentionAction>
+      <className>com.github.stevenbuglione.spice.goland.SpiceClassIntentions$MoveMethod</className>
+      <category>Spice</category>
+    </intentionAction>
+    <intentionAction>
+      <className>com.github.stevenbuglione.spice.goland.SpiceClassIntentions$ConvertToMethod</className>
+      <category>Spice</category>
+    </intentionAction>
+    <intentionAction>
+      <className>com.github.stevenbuglione.spice.goland.SpiceClassIntentions$ConvertToComponent</className>
+      <category>Spice</category>
+    </intentionAction>
+    <intentionAction>
+      <className>com.github.stevenbuglione.spice.goland.SpiceClassIntentions$AddImplements</className>
+      <category>Spice</category>
+    </intentionAction>
+    <intentionAction>
+      <className>com.github.stevenbuglione.spice.goland.SpiceClassIntentions$CreateImplementation</className>
+      <category>Spice</category>
+    </intentionAction>
+    <intentionAction>
+      <className>com.github.stevenbuglione.spice.goland.SpiceClassIntentions$CreateInterface</className>
+      <category>Spice</category>
+    </intentionAction>
+    <intentionAction>
+      <className>com.github.stevenbuglione.spice.goland.SpiceClassIntentions$MoveBean</className>
+      <category>Spice</category>
+    </intentionAction>
   </extensions>
 
   <extensions defaultExtensionNs="com.goide">

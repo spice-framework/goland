@@ -10,6 +10,11 @@ Go source while making declaration comments feel like native annotations:
 - theme-aware annotation and import syntax colors;
 - modifier-hover underlining, navigation, Go to Implementation, rich
   documentation, parameter information, and completion;
+- a class-oriented structure view that nests constructors, static factories,
+  fields, interface methods, and receiver methods beneath the owning type;
+- native Spice intentions for constructors, method co-location, function-to-
+  method/component conversion, explicit `@Implements`, interfaces,
+  implementations, and configuration-owned `@Bean` methods;
 - shared compiler/LSP diagnostics and safe, version-checked edits;
 - complete-package Spice Run and native Go/Delve Debug behavior resolved from
   explicit named, aliased, or namespace `@import` bindings;
@@ -19,6 +24,21 @@ The plugin never makes naked `@` source valid, performs dependency injection,
 or replaces GoLand's Go type system. Framework meaning comes from the exact
 Spice compiler selected by the application; editor presentation remains useful
 while that compiler restarts.
+
+## Class-oriented authoring
+
+The Structure tool window presents valid Go through a type-centric projection.
+`NewOrderService` appears as the constructor of `OrderService`; `ParseType`,
+`MustType`, and `TypeFrom...` functions appear as static factories. Selecting
+any projected member navigates to its ordinary Go declaration, and the source
+file itself is never rewritten for presentation.
+
+At an applicable declaration, **Alt+Enter** exposes branded `Spice:` actions
+for all class-oriented edits. Generated managed types include explicit
+constructors, cross-file moves preserve policy comments and referenced Go
+imports, and interface/implementation generation uses deterministic filenames.
+The edits remain ordinary, gofmt-compatible Go and preserve physical
+`// @...` annotation comments.
 
 ## Compatibility
 
@@ -32,8 +52,8 @@ license, security, cancellation, and data
 review is recorded in [`docs/dependency-review.md`](docs/dependency-review.md).
 
 The current public module pair is core
-`v0.0.0-20260806030852-fde9cc3f18e2` and toolchain
-`v0.0.0-20260806030852-b348e03d419d`. The installed-IDE fixture declares those
+`v0.1.0-preview.1.0.20260807050649-46ba4660cfb0` and toolchain
+`v0.1.0-preview.1.0.20260807044408-6598abca8196`. The installed-IDE fixture declares those
 versions and replaces them only with the corresponding compatibility checkouts
 for deterministic, offline UI verification. Those test-only replacements are
 never written to an application or shipped as plugin configuration.

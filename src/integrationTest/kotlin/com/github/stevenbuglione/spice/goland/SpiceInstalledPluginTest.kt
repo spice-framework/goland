@@ -80,11 +80,11 @@ class SpiceInstalledPluginTest {
         )
         assertTrue(Files.isRegularFile(spiceExecutable))
         val fixture = petclinic
-        val projectOutput = Path.of(
+        val projectOutput = isolatedProjectOutput(Path.of(
             requireNotNull(System.getProperty("spice.installed.project.output")) {
                 "spice.installed.project.output is required"
             },
-        )
+        ))
         Files.createDirectories(projectOutput)
         val project = Files.createTempDirectory(
             projectOutput,
@@ -133,6 +133,9 @@ class SpiceInstalledPluginTest {
                     "127.0.0.1:0",
                 )
                 withEnv("GOROOT", goRoot.toString())
+                withEnv("GOWORK", "off")
+                withEnv("GOTOOLCHAIN", "local")
+                withEnv("GOPROXY", "off")
                 addSystemProperty("sun.java2d.uiScale", "1.0")
                 addSystemProperty("ide.ui.scale", "1.0")
             }
@@ -411,20 +414,22 @@ class SpiceInstalledPluginTest {
                     driver.invokeAction("HideAllWindows")
                     localRobot.waitForIdle()
 
+                    moveCaretToOffset(applicationAt)
                     val light = captureMatchingTheme(
                         localRobot,
                         this,
                         IdeTheme.LIGHT,
+                        project.fileName.toString(),
                     )
                     val dark = captureMatchingTheme(
                         localRobot,
                         this,
                         IdeTheme.DARK,
+                        project.fileName.toString(),
                     )
 
                     assertNotBlank(light)
                     assertNotBlank(dark)
-                    assertThemeDifference(light, dark)
                     assertTrue(
                         ImageIO.write(
                             light,
@@ -440,9 +445,10 @@ class SpiceInstalledPluginTest {
                             "png",
                             screenshotDirectory
                                 .resolve("spice-installed-dark.png")
-                                .toFile(),
+                            .toFile(),
                         ),
                     )
+                    assertThemeDifference(light, dark)
                     assertMatchesGolden(
                         "spice-installed-light.png",
                         light,
@@ -495,11 +501,11 @@ class SpiceInstalledPluginTest {
         val fixture = plugin.resolve(
             "src/integrationTest/resources/projects/concealment",
         )
-        val projectOutput = Path.of(
+        val projectOutput = isolatedProjectOutput(Path.of(
             requireNotNull(
                 System.getProperty("spice.installed.project.output"),
             ),
-        )
+        ))
         Files.createDirectories(projectOutput)
         val project = Files.createTempDirectory(
             projectOutput,
@@ -551,6 +557,9 @@ class SpiceInstalledPluginTest {
                     spiceExecutable.toString(),
                 )
                 withEnv("GOROOT", goRoot.toString())
+                withEnv("GOWORK", "off")
+                withEnv("GOTOOLCHAIN", "local")
+                withEnv("GOPROXY", "off")
                 addSystemProperty("sun.java2d.uiScale", "1.0")
                 addSystemProperty("ide.ui.scale", "1.0")
             }
@@ -1232,6 +1241,34 @@ class SpiceInstalledPluginTest {
         )
     }
 
+    private fun isolatedProjectOutput(configured: Path): Path {
+        if (!hasEnclosingProjectBoundary(configured)) {
+            return configured
+        }
+        val temporary = Path.of(
+            requireNotNull(System.getProperty("java.io.tmpdir")),
+            "spice-goland-integration-projects",
+        )
+        check(!hasEnclosingProjectBoundary(temporary)) {
+            "temporary integration project output is nested beneath a " +
+                "go.work or Git root: $temporary"
+        }
+        return temporary
+    }
+
+    private fun hasEnclosingProjectBoundary(path: Path): Boolean {
+        var current: Path? = path.toAbsolutePath().normalize()
+        while (current != null) {
+            if (Files.exists(current.resolve(".git")) ||
+                Files.isRegularFile(current.resolve("go.work"))
+            ) {
+                return true
+            }
+            current = current.parent
+        }
+        return false
+    }
+
     private fun changedPixelCount(
         before: BufferedImage,
         during: BufferedImage,
@@ -1365,10 +1402,12 @@ class SpiceInstalledPluginTest {
         robot: Robot,
         editor: JEditorUiComponent,
         theme: IdeTheme,
+        projectName: String,
     ): BufferedImage {
         editor.driver.changeTheme(theme)
         robot.waitForIdle()
         Thread.sleep(2_000)
+        activateIdeWindow(projectName, robot)
         return captureEditor(robot, editor)
     }
 
